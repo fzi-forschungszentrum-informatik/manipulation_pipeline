@@ -1,0 +1,22 @@
+# Performs a free-space planned motion to a named pose defined in robot_description_semantic
+
+# Joint model group to use
+# If this is empty, a default group is assumed. This is only possible if there is exactly one group in robot_description_semantic that is not designated as an end-effector.
+string joint_group
+
+# Pose name
+# This should correspond to a group_state name in robot_description_semantic.
+string pose_name
+
+# Motion parameters to use during execution
+# If left unchanged, defaults from mapi configuration will be used.
+MotionParameters motion_parameters
+
+# Controller to use for trajectory execution
+# If left empty, a default controller is used
+string controller
+---
+bool success
+string message
+---
+Progress progress

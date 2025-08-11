@@ -1,0 +1,47 @@
+# Grasp a collision object
+# This includes:
+#   - Free-space motion to approach pose
+#   - Cartesian motion to grasp pose
+#   - Gripper action
+#   - Cartesian retract
+
+# End effector to use
+# If this is empty, a default end effector is assumed. This is only possible if there is exactly one end effector in robot_description_semantic.
+# For motion planning, its parent group is used. As planning requires IK calculations, this parent group needs to be defined as a chain.
+string end_effector
+
+# Robot frame to move to grasp pose
+string tip
+
+# Name of object to grasp
+# Corresponds to MoveIt collision object id.
+string object_name
+
+# Subframe of the object to move to for grasp
+# Corresponds to a MoveIt collision object subframe. If left empty, the collision object pose will be used.
+string subframe
+
+# Pairs of links that should not get checked for collsions during approach and retract
+CollisionPair[] disabled_collisions
+
+# Motion for cartesian approach
+LinearMotion approach
+
+# Command to execute once the tool is in place
+ToolCommand grasp_action
+
+# Motion for cartesian retraction
+LinearMotion retract
+
+# Motion parameters to use during execution
+# If left unchanged, defaults from mapi configuration will be used
+MotionParameters motion_parameters
+
+# Controller to use for trajectory execution
+# If left empty, a default controller is used
+string controller
+---
+bool success
+string message
+---
+Progress progress

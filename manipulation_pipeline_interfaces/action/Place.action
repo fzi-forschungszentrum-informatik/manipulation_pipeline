@@ -1,0 +1,48 @@
+# Place an attached object at a specific pose
+# This includes:
+#   - Free-space motion to approach pose
+#   - Cartesian motion to placement pose
+#   - Gripper action
+#   - Cartesian retract
+
+# Name of object to grasp
+# Corresponds to MoveIt collision object id. Needs to currently be attached to a joint group that is defined as a chain.
+# If this is empty and there currently is only one attached object, that one is used as default.
+string object_name
+
+# End effector to use for releasing
+# If this is empty, a default end effector is assumed. This is only possible if there is exactly one end effector in robot_description_semantic.
+# For motion planning, its parent group is used. As planning requires IK calculations, this parent group needs to be defined as a chain.
+string end_effector
+
+# Pose to place object at
+geometry_msgs/PoseStamped pose
+
+# Subframe of the object that should be placed at pose
+# Corresponds to a MoveIt collision object subframe. If left empty, the collision object pose will be used.
+string subframe
+
+# Pairs of links that should not get checked for collsions during approach and retract
+CollisionPair[] disabled_collisions
+
+# Motion for cartesian approach
+LinearMotion approach
+
+# Command to execute to release the object
+ToolCommand release_action
+
+# Motion for cartesian retraction
+LinearMotion retract
+
+# Motion parameters to use during execution
+# If left unchanged, defaults from mapi configuration will be used
+MotionParameters motion_parameters
+
+# Controller to use for trajectory execution
+# If left empty, a default controller is used
+string controller
+---
+bool success
+string message
+---
+Progress progress

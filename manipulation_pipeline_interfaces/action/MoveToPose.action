@@ -1,0 +1,25 @@
+# Plan and execute a motion to a cartesian pose
+
+# Joint model group to use
+# If this is empty, a default group is assumed. This is only possible if there is exactly one group in robot_description_semantic that is not designated as an end-effector.
+# In order to enable IK calculations, the group needs to be defined as a chain.
+string joint_group
+
+# Frame to move to the specified pose
+string tip
+
+# Pose to move to
+geometry_msgs/PoseStamped pose
+
+# Motion parameters to use during execution
+# If left unchanged, defaults from mapi configuration will be used.
+MotionParameters motion_parameters
+
+# Controller to use for trajectory execution
+# If left empty, a default controller is used
+string controller
+---
+bool success
+string message
+---
+Progress progress

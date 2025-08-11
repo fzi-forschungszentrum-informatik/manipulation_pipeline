@@ -1,0 +1,22 @@
+# Name of the object
+# This will be stored as the collision object id.
+string name
+
+# Path to mesh
+# This should be resolvable by resource_retriever, so probably start with package:// or file://
+string path
+
+# Object pose
+geometry_msgs/PoseStamped pose
+
+# Relevant frames with respect to the mesh
+# Use this to store possible grasping poses.
+string[] subframe_names
+geometry_msgs/Pose[] subframe_poses
+
+# Object color
+# This is ignored if color.a is 0
+std_msgs/ColorRGBA color
+---
+bool success
+string message

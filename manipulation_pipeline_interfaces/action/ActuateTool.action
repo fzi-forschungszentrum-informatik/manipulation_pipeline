@@ -1,0 +1,13 @@
+# Execute a single command with an end effector
+
+# End effector to use
+# If this is empty, a default end effector is used. This is only possible if there is only one end-effector specified in the SRDF.
+string end_effector
+
+# Command to execute
+ToolCommand command
+---
+bool success
+string message
+---
+Progress progress

@@ -1,0 +1,15 @@
+PROJECT_NAME           = manipulation_pipeline
+PROJECT_NUMBER         = 0.0.0
+PROJECT_BRIEF          = "Generic MoveIt-based motion and manipulation interface"
+
+INPUT                  = ./include
+RECURSIVE              = YES
+OUTPUT_DIRECTORY       = doc_output
+
+EXTRACT_ALL            = YES
+
+GENERATE_LATEX         = NO
+GENERATE_XML           = YES
+
+# Hide forward declarations
+EXCLUDE_SYMBOLS        = moveit,moveit_cpp,planning_scene,rclcpp,robot_trajectory,planning_pipeline

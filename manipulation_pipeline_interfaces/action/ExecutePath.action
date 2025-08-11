@@ -1,0 +1,32 @@
+# Plan and execute a cartesian path using linear motions
+
+# Joint model group to use
+# If this is empty, a default group is assumed. This is only possible if there is exactly one group in robot_description_semantic that is not designated as an end-effector.
+# In order to enable IK calculations, the group needs to be defined as a chain.
+string joint_group
+
+# Frame to move along the cartesian path
+# If this is not set explicitly, the chain end of joint_group is used as a default.
+string tip
+
+# Frame relative to which all path poses are defined
+string path_frame
+
+# Poses that define the path
+geometry_msgs/Pose[] path
+
+# Pairs of links that should not get checked for collsions during planning
+CollisionPair[] disabled_collisions
+
+# Cartesian motion limits to use during execution
+# If left unchanged, defaults from mapi configuration will be used.
+CartesianLimits motion_limits
+
+# Controller to use for trajectory execution
+# If left empty, a default controller is used
+string controller
+---
+bool success
+string message
+---
+Progress progress
