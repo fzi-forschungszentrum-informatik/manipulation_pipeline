@@ -179,35 +179,19 @@ Planner::planCartesianSequence(const moveit::core::RobotState& initial_state,
 
     const auto& bounds = joint_model->getVariableBounds();
 
-    switch (bounds.size())
+    if (bounds.size() == 1)
     {
-      case 0:
-        break;
-      case 1:
-        joint_limit.has_position_limits     = bounds[0].position_bounded_;
-        joint_limit.min_position            = bounds[0].min_position_;
-        joint_limit.max_position            = bounds[0].max_position_;
-        joint_limit.has_velocity_limits     = bounds[0].velocity_bounded_;
-        joint_limit.max_velocity            = bounds[0].max_velocity_;
-        joint_limit.has_acceleration_limits = bounds[0].acceleration_bounded_;
-        joint_limit.max_acceleration        = bounds[0].max_acceleration_;
-        joint_limit.has_deceleration_limits = bounds[0].acceleration_bounded_;
-        joint_limit.max_deceleration        = -bounds[0].max_acceleration_;
-        break;
-      default:
-        joint_limit.has_position_limits     = true;
-        joint_limit.min_position            = 0;
-        joint_limit.max_position            = 0;
-        joint_limit.has_velocity_limits     = true;
-        joint_limit.max_velocity            = 0;
-        joint_limit.has_acceleration_limits = true;
-        joint_limit.max_acceleration        = 0;
-        joint_limit.has_deceleration_limits = true;
-        joint_limit.max_deceleration        = -0.;
-        break;
+      joint_limit.has_position_limits     = bounds[0].position_bounded_;
+      joint_limit.min_position            = bounds[0].min_position_;
+      joint_limit.max_position            = bounds[0].max_position_;
+      joint_limit.has_velocity_limits     = bounds[0].velocity_bounded_;
+      joint_limit.max_velocity            = bounds[0].max_velocity_;
+      joint_limit.has_acceleration_limits = bounds[0].acceleration_bounded_;
+      joint_limit.max_acceleration        = bounds[0].max_acceleration_;
+      joint_limit.has_deceleration_limits = bounds[0].acceleration_bounded_;
+      joint_limit.max_deceleration        = -bounds[0].max_acceleration_;
+      pilz_joint_limits.addLimit(joint_model->getName(), joint_limit);
     }
-
-    pilz_joint_limits.addLimit(joint_model->getName(), joint_limit);
   }
 
   if (!limits)
