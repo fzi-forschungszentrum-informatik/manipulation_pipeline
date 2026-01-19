@@ -45,6 +45,7 @@
 #include <moveit_msgs/msg/collision_object.hpp>
 #include <optional>
 #include <rclcpp_action/server_goal_handle.hpp>
+#include <utility>
 
 namespace manipulation_pipeline {
 
@@ -71,7 +72,7 @@ private:
   moveit_msgs::msg::CollisionObject
   getCollisionObject(const planning_scene::PlanningScene& planning_scene) const;
 
-  geometry_msgs::msg::PoseStamped
+  std::pair<geometry_msgs::msg::PoseStamped, geometry_msgs::msg::Pose>
   resolveTargetPose(const moveit_msgs::msg::CollisionObject& object) const;
 };
 
