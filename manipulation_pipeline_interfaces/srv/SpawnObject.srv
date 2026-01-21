@@ -17,6 +17,10 @@ geometry_msgs/Pose[] subframe_poses
 # Object color
 # This is ignored if color.a is 0
 std_msgs/ColorRGBA color
+
+# Link to attach collision object to
+# Object will not get attached if left empty.
+string attach_link
 ---
 bool success
 string message

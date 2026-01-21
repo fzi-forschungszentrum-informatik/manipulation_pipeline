@@ -40,6 +40,7 @@
 #include <geometric_shapes/shape_messages.h>
 #include <geometric_shapes/shape_operations.h>
 #include <memory>
+#include <moveit_msgs/msg/attached_collision_object.hpp>
 #include <moveit_msgs/msg/collision_object.hpp>
 #include <moveit_msgs/msg/object_color.hpp>
 
@@ -126,9 +127,23 @@ void CollisionObjectManager::spawnObjectCb(std::shared_ptr<SpawnObjectSrv::Reque
       color->color = request->color;
     }
 
-    if (!m_planning_scene_monitor->processCollisionObjectMsg(collision_object, color))
+    if (request->attach_link.empty())
     {
-      throw std::runtime_error{"Could not process collision object"};
+      if (!m_planning_scene_monitor->processCollisionObjectMsg(collision_object, color))
+      {
+        throw std::runtime_error{"Could not process collision object"};
+      }
+    }
+    else
+    {
+      const auto attached_collision_object =
+        std::make_shared<moveit_msgs::msg::AttachedCollisionObject>();
+      attached_collision_object->link_name = request->attach_link;
+      attached_collision_object->object    = *collision_object;
+      if (!m_planning_scene_monitor->processAttachedCollisionObjectMsg(attached_collision_object))
+      {
+        throw std::runtime_error{"Could not process attached collision object"};
+      }
     }
 
     response->success = true;
