@@ -246,12 +246,17 @@ Grasp::getCollisionObject(const planning_scene::PlanningScene& planning_scene) c
   const auto& object_name = m_goal->object_name;
 
   moveit_msgs::msg::CollisionObject obj;
-  if (!planning_scene.getCollisionObjectMsg(obj, object_name))
+  if (planning_scene.getCollisionObjectMsg(obj, object_name))
   {
-    throw std::runtime_error{fmt::format("No object named '{}'", object_name)};
+    return obj;
+  }
+  else if (moveit_msgs::msg::AttachedCollisionObject attached_obj;
+           planning_scene.getAttachedCollisionObjectMsg(attached_obj, object_name))
+  {
+    return attached_obj.object;
   }
 
-  return obj;
+  throw std::runtime_error{fmt::format("No object named '{}'", object_name)};
 }
 
 std::pair<geometry_msgs::msg::PoseStamped, geometry_msgs::msg::Pose>
