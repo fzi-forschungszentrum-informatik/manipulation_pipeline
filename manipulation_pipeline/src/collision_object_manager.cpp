@@ -103,6 +103,9 @@ void CollisionObjectManager::spawnObjectCb(std::shared_ptr<SpawnObjectSrv::Reque
                     attached_co.link_name.c_str());
         attached_co.object.operation = moveit_msgs::msg::CollisionObject::REMOVE;
         planning_scene->processAttachedCollisionObjectMsg(attached_co);
+
+        m_planning_scene_monitor->triggerSceneUpdateEvent(
+          planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType::UPDATE_GEOMETRY);
       }
     }
 
