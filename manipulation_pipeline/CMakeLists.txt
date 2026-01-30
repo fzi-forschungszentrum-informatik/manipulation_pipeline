@@ -49,6 +49,7 @@ target_sources(manipulation_pipeline
     src/planning_steps/grasp.cpp
     src/planning_steps/move_to_named_pose.cpp
     src/planning_steps/move_to_pose.cpp
+    src/planning_steps/move_to_configuration.cpp
     src/planning_steps/place.cpp
     src/robot_model.cpp
     src/robot_model_monitor.cpp
