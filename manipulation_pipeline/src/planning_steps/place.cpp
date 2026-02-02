@@ -92,10 +92,23 @@ Place::plan(const RobotModel& robot_model,
   // Resolve tip target pose
   const auto target_pose = tip_offset.inverse() * object_target_pose;
 
-  // Message for collision object removal
-  moveit_msgs::msg::AttachedCollisionObject attached_collision_object;
-  attached_collision_object.object.id        = attached_body.getName();
-  attached_collision_object.object.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+  // Messages for collision object removal
+  // If we want to attach the object to a different link afterwards, we need seperate REMOVE and ADD
+  // operations
+  std::vector<moveit_msgs::msg::AttachedCollisionObject> attached_collision_object_operations;
+  attached_collision_object_operations.emplace_back();
+  attached_collision_object_operations.back().object.id = attached_body.getName();
+  attached_collision_object_operations.back().object.operation =
+    moveit_msgs::msg::CollisionObject::REMOVE;
+
+  if (!m_goal->attach_link.empty())
+  {
+    attached_collision_object_operations.emplace_back();
+    attached_collision_object_operations.back().link_name = m_goal->attach_link;
+    attached_collision_object_operations.back().object.id = attached_body.getName();
+    attached_collision_object_operations.back().object.operation =
+      moveit_msgs::msg::CollisionObject::ADD;
+  }
 
   // Do planning inside of IK loop
   robot_trajectory::RobotTrajectoryPtr result_ptp_approach_trajectory;
@@ -164,7 +177,11 @@ Place::plan(const RobotModel& robot_model,
 
           tool_action = createToolAction(
             ee_interface, detached_planning_scene->getRobotModel(), *state, m_goal->release_action);
-          detached_planning_scene->processAttachedCollisionObjectMsg(attached_collision_object);
+          for (const auto& attached_collision_object_op : attached_collision_object_operations)
+          {
+            detached_planning_scene->processAttachedCollisionObjectMsg(
+              attached_collision_object_op);
+          }
 
           RCLCPP_DEBUG(m_log, "Planning cartesian retract trajectory");
           auto cartesian_retract_trajectory = planner.planCartesian(
@@ -201,7 +218,10 @@ Place::plan(const RobotModel& robot_model,
 
   // Keep track of current state
   context.planning_scene->setCurrentState(result_retract_trajectory->getLastWayPoint());
-  context.planning_scene->processAttachedCollisionObjectMsg(attached_collision_object);
+  for (const auto& attached_collision_object_op : attached_collision_object_operations)
+  {
+    context.planning_scene->processAttachedCollisionObjectMsg(attached_collision_object_op);
+  }
 
   auto result = std::make_shared<ActionSequence>(name(), goalHandle());
   result->add(std::make_shared<actions::ExecuteTrajectory>(
@@ -212,7 +232,11 @@ Place::plan(const RobotModel& robot_model,
   {
     result->add(tool_action);
   }
-  result->add(std::make_shared<actions::ChangeAttachedObject>(attached_collision_object, "detach"));
+  for (const auto& attached_collision_object_op : attached_collision_object_operations)
+  {
+    result->add(
+      std::make_shared<actions::ChangeAttachedObject>(attached_collision_object_op, "detach"));
+  }
   result->add(std::make_shared<actions::ExecuteTrajectory>(
     result_retract_trajectory, m_goal->controller, std::vector{tip_link}, "retract"));
 

@@ -40,6 +40,7 @@
 #include <geometric_shapes/shape_messages.h>
 #include <geometric_shapes/shape_operations.h>
 #include <memory>
+#include <moveit_msgs/msg/attached_collision_object.hpp>
 #include <moveit_msgs/msg/collision_object.hpp>
 #include <moveit_msgs/msg/object_color.hpp>
 
@@ -88,6 +89,27 @@ void CollisionObjectManager::spawnObjectCb(std::shared_ptr<SpawnObjectSrv::Reque
 {
   try
   {
+    // Check if the object already exists
+    // In the normal case, this will just move the object, but if it is currently attached, we need
+    // to remove it first
+    {
+      moveit_msgs::msg::AttachedCollisionObject attached_co;
+
+      planning_scene_monitor::LockedPlanningSceneRW planning_scene{m_planning_scene_monitor};
+      if (planning_scene->getAttachedCollisionObjectMsg(attached_co, request->name))
+      {
+        RCLCPP_INFO(m_log,
+                    "Object %s already exists and is attached to %s, detaching first",
+                    attached_co.object.id.c_str(),
+                    attached_co.link_name.c_str());
+        attached_co.object.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+        planning_scene->processAttachedCollisionObjectMsg(attached_co);
+
+        m_planning_scene_monitor->triggerSceneUpdateEvent(
+          planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType::UPDATE_GEOMETRY);
+      }
+    }
+
     const auto collision_object       = std::make_shared<moveit_msgs::msg::CollisionObject>();
     collision_object->header.frame_id = request->pose.header.frame_id;
     collision_object->pose            = request->pose.pose;
@@ -105,9 +127,23 @@ void CollisionObjectManager::spawnObjectCb(std::shared_ptr<SpawnObjectSrv::Reque
       color->color = request->color;
     }
 
-    if (!m_planning_scene_monitor->processCollisionObjectMsg(collision_object, color))
+    if (request->attach_link.empty())
     {
-      throw std::runtime_error{"Could not process collision object"};
+      if (!m_planning_scene_monitor->processCollisionObjectMsg(collision_object, color))
+      {
+        throw std::runtime_error{"Could not process collision object"};
+      }
+    }
+    else
+    {
+      const auto attached_collision_object =
+        std::make_shared<moveit_msgs::msg::AttachedCollisionObject>();
+      attached_collision_object->link_name = request->attach_link;
+      attached_collision_object->object    = *collision_object;
+      if (!m_planning_scene_monitor->processAttachedCollisionObjectMsg(attached_collision_object))
+      {
+        throw std::runtime_error{"Could not process attached collision object"};
+      }
     }
 
     response->success = true;

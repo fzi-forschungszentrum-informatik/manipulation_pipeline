@@ -38,6 +38,10 @@ LinearMotion retract
 # If left unchanged, defaults from mapi configuration will be used
 MotionParameters motion_parameters
 
+# Link to attach collision object to after release
+# Object will not get attached if left empty.
+string attach_link
+
 # Controller to use for trajectory execution
 # If left empty, a default controller is used
 string controller

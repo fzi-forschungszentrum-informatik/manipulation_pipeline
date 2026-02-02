@@ -78,8 +78,8 @@ Grasp::plan(const RobotModel& robot_model,
   const auto* tip_link = planning_interface.resolveTip(m_goal->tip);
 
   // Get target pose based on collision object in scene
-  const auto collision_object             = getCollisionObject(*(context.planning_scene));
-  const auto collision_object_target_pose = resolveTargetPose(collision_object);
+  const auto collision_object = getCollisionObject(*(context.planning_scene));
+  const auto [collision_object_target_pose, subframe_offset] = resolveTargetPose(collision_object);
 
   // Transform target pose to model frame
   if (!context.planning_scene->knowsFrameTransform(collision_object_target_pose.header.frame_id))
@@ -92,8 +92,11 @@ Grasp::plan(const RobotModel& robot_model,
 
   Eigen::Isometry3d target_pose_local;
   tf2::convert(collision_object_target_pose.pose, target_pose_local);
+  Eigen::Isometry3d target_pose_subframe_offset;
+  tf2::convert(subframe_offset, target_pose_subframe_offset);
 
-  const auto target_pose = target_pose_frame_transform * target_pose_local;
+  const auto target_pose =
+    target_pose_frame_transform * target_pose_local * target_pose_subframe_offset;
 
   // Get approach and retract frames based on target frame
   const double approach_dist = m_goal->approach.distance == 0.0 ? 0.1 : m_goal->approach.distance;
@@ -243,26 +246,34 @@ Grasp::getCollisionObject(const planning_scene::PlanningScene& planning_scene) c
   const auto& object_name = m_goal->object_name;
 
   moveit_msgs::msg::CollisionObject obj;
-  if (!planning_scene.getCollisionObjectMsg(obj, object_name))
+  if (planning_scene.getCollisionObjectMsg(obj, object_name))
   {
-    throw std::runtime_error{fmt::format("No object named '{}'", object_name)};
+    return obj;
+  }
+  else if (moveit_msgs::msg::AttachedCollisionObject attached_obj;
+           planning_scene.getAttachedCollisionObjectMsg(attached_obj, object_name))
+  {
+    return attached_obj.object;
   }
 
-  return obj;
+  throw std::runtime_error{fmt::format("No object named '{}'", object_name)};
 }
 
-geometry_msgs::msg::PoseStamped
+std::pair<geometry_msgs::msg::PoseStamped, geometry_msgs::msg::Pose>
 Grasp::resolveTargetPose(const moveit_msgs::msg::CollisionObject& object) const
 {
   const auto& subframe = m_goal->subframe;
 
   geometry_msgs::msg::PoseStamped pose;
   pose.header.frame_id = object.header.frame_id;
+  pose.pose            = object.pose;
+
+  geometry_msgs::msg::Pose subframe_offset;
 
   if (subframe.empty())
   {
     pose.pose = object.pose;
-    return pose;
+    return std::make_pair(pose, subframe_offset);
   }
 
   if (object.subframe_names.size() != object.subframe_poses.size())
@@ -276,8 +287,7 @@ Grasp::resolveTargetPose(const moveit_msgs::msg::CollisionObject& object) const
       subframe_it != subframe_names.end())
   {
     const auto i = subframe_it - subframe_names.begin();
-    pose.pose    = object.subframe_poses[i];
-    return pose;
+    return std::make_pair(pose, object.subframe_poses[i]);
   }
   else
   {
