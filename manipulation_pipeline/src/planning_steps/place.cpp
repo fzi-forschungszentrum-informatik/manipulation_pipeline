@@ -175,8 +175,11 @@ Place::plan(const RobotModel& robot_model,
           const auto detached_planning_scene =
             planning_scene::PlanningScene::clone(context.planning_scene);
 
-          tool_action = createToolAction(
-            ee_interface, detached_planning_scene->getRobotModel(), *state, m_goal->release_action);
+          tool_action = createToolAction(ee_interface,
+                                         detached_planning_scene->getRobotModel(),
+                                         planner,
+                                         *state,
+                                         m_goal->release_action);
           for (const auto& attached_collision_object_op : attached_collision_object_operations)
           {
             detached_planning_scene->processAttachedCollisionObjectMsg(

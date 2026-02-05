@@ -179,8 +179,11 @@ Grasp::plan(const RobotModel& robot_model,
           const auto attached_planning_scene =
             planning_scene::PlanningScene::clone(context.planning_scene);
 
-          tool_action = createToolAction(
-            ee_interface, attached_planning_scene->getRobotModel(), *state, m_goal->grasp_action);
+          tool_action = createToolAction(ee_interface,
+                                         attached_planning_scene->getRobotModel(),
+                                         planner,
+                                         *state,
+                                         m_goal->grasp_action);
           attached_planning_scene->processAttachedCollisionObjectMsg(attached_collision_object);
 
           RCLCPP_DEBUG(m_log, "Planning cartesian retract trajectory");

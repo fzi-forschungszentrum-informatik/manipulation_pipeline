@@ -40,6 +40,7 @@
 
 #include <moveit/kinematic_constraints/utils.hpp>
 #include <moveit/robot_state/cartesian_interpolator.hpp>
+#include <moveit/trajectory_processing/time_optimal_trajectory_generation.hpp>
 #include <pilz_industrial_motion_planner/command_list_manager.hpp>
 #include <pilz_industrial_motion_planner/trajectory_generator_lin.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
@@ -56,6 +57,8 @@ Planner::Planner(const GroupInterface& group_interface,
   , m_clock{planning_context.node->get_clock()}
   , m_group{group_interface.group()}
   , m_planning_component{&group_interface.planningComponent()}
+  , m_time_parametrization{std::make_unique<
+      trajectory_processing::TimeOptimalTrajectoryGeneration>()}
   , m_command_list_manager{planning_context.node, planning_context.planning_scene->getRobotModel()}
   , m_params{params}
   , m_cartesian_limits{cartesian_limits}
@@ -273,6 +276,17 @@ Planner::planCartesianSequence(const moveit::core::RobotState& initial_state,
   }
 
   return result;
+}
+
+void Planner::retimeTrajectory(robot_trajectory::RobotTrajectory& trajectory) const
+{
+  const double initial_duration = trajectory.getDuration();
+  if (!m_time_parametrization->computeTimeStamps(trajectory))
+  {
+    throw std::runtime_error{"Unable to retime trajectory"};
+  }
+  RCLCPP_INFO(
+    m_log, "Retimed trajectory from %.02fs to %.02fs", initial_duration, trajectory.getDuration());
 }
 
 robot_trajectory::RobotTrajectoryPtr
