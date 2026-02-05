@@ -44,6 +44,7 @@
 #include <moveit/robot_model/link_model.hpp>
 #include <moveit/robot_state/robot_state.hpp>
 #include <moveit/robot_trajectory/robot_trajectory.hpp>
+#include <moveit/trajectory_processing/time_parameterization.hpp>
 #include <pilz_industrial_motion_planner/command_list_manager.hpp>
 #include <rclcpp/logger.hpp>
 #include <string>
@@ -98,6 +99,8 @@ public:
     const planning_scene::PlanningScenePtr& planning_scene,
     const manipulation_pipeline_interfaces::msg::CartesianLimits* limits = nullptr);
 
+  void retimeTrajectory(robot_trajectory::RobotTrajectory& trajectory) const;
+
 private:
   robot_trajectory::RobotTrajectoryPtr
   doPlan(const moveit_cpp::PlanningComponent::PlanRequestParameters& params,
@@ -108,6 +111,7 @@ private:
 
   const moveit::core::JointModelGroup* m_group;
   moveit_cpp::PlanningComponent* m_planning_component;
+  std::unique_ptr<trajectory_processing::TimeParameterization> m_time_parametrization;
 
   pilz_industrial_motion_planner::CommandListManager m_command_list_manager;
 

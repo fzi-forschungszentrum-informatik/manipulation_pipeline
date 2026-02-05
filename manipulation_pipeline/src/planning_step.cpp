@@ -37,6 +37,7 @@
 
 #include "manipulation_pipeline/actions/dwell.h"
 #include "manipulation_pipeline/actions/execute_trajectory.h"
+#include "manipulation_pipeline/planner.h"
 
 namespace manipulation_pipeline {
 
@@ -127,6 +128,7 @@ manipulation_pipeline_interfaces::msg::CartesianLimits PlanningStep::applyReques
 std::shared_ptr<Action>
 PlanningStep::createToolAction(const GroupInterface& group_interface,
                                const moveit::core::RobotModelConstPtr& robot_model,
+                               const Planner& planner,
                                moveit::core::RobotState& current_state,
                                const manipulation_pipeline_interfaces::msg::ToolCommand& cmd) const
 {
@@ -140,6 +142,8 @@ PlanningStep::createToolAction(const GroupInterface& group_interface,
 
       current_state.setVariableValues(cmd.joint_cmd);
       trajectory->addSuffixWayPoint(current_state, 1.0);
+
+      planner.retimeTrajectory(*trajectory);
 
       return std::make_shared<actions::ExecuteTrajectory>(
         trajectory, cmd.controller, std::vector<const moveit::core::LinkModel*>{}, "ToolCommand");

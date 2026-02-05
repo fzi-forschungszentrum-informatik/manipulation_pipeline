@@ -37,6 +37,7 @@
 
 #include "manipulation_pipeline/action.h"
 #include "manipulation_pipeline/actions/execute_trajectory.h"
+#include "manipulation_pipeline/planner.h"
 #include "manipulation_pipeline/planning_context.h"
 
 namespace manipulation_pipeline {
@@ -62,13 +63,18 @@ ActuateTool::plan(const RobotModel& robot_model,
                   PlanningContext& context) const
 {
   const auto& group_interface = robot_model.findEndEffector(m_goal->end_effector);
+  auto& planning_interface    = group_interface.planningInterface();
+  Planner planner{planning_interface, context, params, limits, m_log};
 
   const auto action_sequence = std::make_shared<ActionSequence>(name(), goalHandle());
 
   auto robot_state = context.planning_scene->getCurrentState();
 
-  const auto tool_action = createToolAction(
-    group_interface, context.planning_scene->getRobotModel(), robot_state, m_goal->command);
+  const auto tool_action = createToolAction(group_interface,
+                                            context.planning_scene->getRobotModel(),
+                                            planner,
+                                            robot_state,
+                                            m_goal->command);
   if (tool_action)
   {
     action_sequence->add(tool_action);

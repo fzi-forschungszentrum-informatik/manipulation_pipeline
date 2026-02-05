@@ -98,6 +98,7 @@ protected:
   std::shared_ptr<Action>
   createToolAction(const GroupInterface& group_interface,
                    const moveit::core::RobotModelConstPtr& robot_model,
+                   const Planner& planner,
                    moveit::core::RobotState& current_state,
                    const manipulation_pipeline_interfaces::msg::ToolCommand& cmd) const;
 
