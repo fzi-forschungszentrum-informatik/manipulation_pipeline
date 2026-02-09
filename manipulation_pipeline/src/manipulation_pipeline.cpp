@@ -50,8 +50,6 @@ ManipulationPipeline::ManipulationPipeline(const rclcpp::Node::SharedPtr& node)
                           },
                           node,
                           node->get_logger().get_child("robot_model")}
-  , m_visualization_interface{
-      std::make_shared<VisualizationInterface>(node, node->get_logger().get_child("visualization"))}
 {
   m_state.generation = 0;
   m_state_pub->publish(m_state);
@@ -98,6 +96,15 @@ void ManipulationPipeline::reset()
     std::make_shared<RobotModel>(*m_moveitcpp->getPlanningSceneMonitor()->getRobotModel(),
                                  m_moveitcpp,
                                  log.get_child("robot_model"));
+  if (m_visualization_interface)
+  {
+    m_visualization_interface->clearAll();
+  }
+  else
+  {
+    m_visualization_interface = std::make_shared<VisualizationInterface>(
+      robot_model->modelFrame(), m_node, m_node->get_logger().get_child("visualization"));
+  }
   const auto execution_pipeline =
     std::make_shared<ExecutionPipeline>(m_moveitcpp, log.get_child("execution_pipeline"));
   const auto planning_pipeline =

@@ -44,9 +44,11 @@
 namespace manipulation_pipeline {
 
 MarkerInterface::MarkerInterface(const std::string& topic,
+                                 const std::string& reference_frame,
                                  const rclcpp::Node::SharedPtr& node,
                                  rclcpp::Logger log)
-  : m_log{std::move(log)}
+  : m_reference_frame{reference_frame}
+  , m_log{std::move(log)}
   , m_id_cnt{0}
   , m_pub{node->create_publisher<Marker>(topic, rclcpp::SystemDefaultsQoS{})}
 {
@@ -295,25 +297,29 @@ bool MarkerInterface::remove(std::size_t id)
 
 void MarkerInterface::clear()
 {
-  if (!m_markers.empty())
-  {
-    Marker marker;
-    marker.header.frame_id =
-      m_markers.begin()->second.header.frame_id; // rviz ignores message without frame_id
-    marker.action = Marker::DELETEALL;
+  Marker marker;
+  marker.header.frame_id = m_reference_frame;
+  marker.action          = Marker::DELETEALL;
 
-    m_pub->publish(marker);
-  }
+  m_pub->publish(marker);
 
   m_markers.clear();
 }
 
-VisualizationInterface::VisualizationInterface(const rclcpp::Node::SharedPtr& node,
+VisualizationInterface::VisualizationInterface(const std::string& reference_frame,
+                                               const rclcpp::Node::SharedPtr& node,
                                                rclcpp::Logger log)
   : m_log{std::move(log)}
-  , plan_interface{std::make_shared<MarkerInterface>("~/plan", node, m_log)}
-  , trajectory_interface{std::make_shared<MarkerInterface>("~/trajectory", node, m_log)}
+  , plan_interface{std::make_shared<MarkerInterface>("~/plan", reference_frame, node, m_log)}
+  , trajectory_interface{
+      std::make_shared<MarkerInterface>("~/trajectory", reference_frame, node, m_log)}
 {
+}
+
+void VisualizationInterface::clearAll()
+{
+  plan_interface->clear();
+  trajectory_interface->clear();
 }
 
 } // namespace manipulation_pipeline
