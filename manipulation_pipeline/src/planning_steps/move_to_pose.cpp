@@ -64,6 +64,7 @@ MoveToPose::plan(const RobotModel& robot_model,
 {
   auto& group_interface = robot_model.findChain(m_goal->joint_group);
   Planner planner{group_interface, context, params, limits, m_log};
+  const auto* tip_link = group_interface.resolveTip(m_goal->tip);
 
   // Transform target pose to model frame
   if (!context.planning_scene->knowsFrameTransform(m_goal->pose.header.frame_id))
@@ -79,16 +80,21 @@ MoveToPose::plan(const RobotModel& robot_model,
 
   const auto target_pose = target_pose_frame_transform * target_pose_local;
 
+  // Visualize path
+  const auto current_pose_local = target_pose_frame_transform.inverse() *
+                                  context.planning_scene->getFrameTransform(tip_link->getName());
+  std::vector path_poses{current_pose_local, target_pose_local};
+  context.plan_visualizer->addPath(path_poses, m_goal->pose.header.frame_id);
+  context.plan_visualizer->publish();
+
   // Plan trajectory
   geometry_msgs::msg::PoseStamped target_pose_msg;
   target_pose_msg.header.frame_id = context.planning_scene->getPlanningFrame();
   tf2::convert(target_pose, target_pose_msg.pose);
 
   const auto initial_state = context.planning_scene->getCurrentState();
-  const auto trajectory    = planner.plan(initial_state,
-                                       target_pose_msg,
-                                       group_interface.resolveTip(m_goal->tip),
-                                       context.planning_scene);
+  const auto trajectory =
+    planner.plan(initial_state, target_pose_msg, tip_link, context.planning_scene);
   if (!trajectory)
   {
     throw std::runtime_error{fmt::format("Could not plan to pose: {}", planner.lastErrorMsg())};
