@@ -60,6 +60,7 @@ class MarkerInterface
 {
 public:
   MarkerInterface(const std::string& topic,
+                  const std::string& reference_frame,
                   const rclcpp::Node::SharedPtr& node,
                   rclcpp::Logger log);
 
@@ -82,6 +83,7 @@ public:
 
 private:
   using Marker = visualization_msgs::msg::Marker;
+  std::string m_reference_frame;
 
   rclcpp::Logger m_log;
 
@@ -100,7 +102,11 @@ private:
 class VisualizationInterface
 {
 public:
-  VisualizationInterface(const rclcpp::Node::SharedPtr& node, rclcpp::Logger log);
+  VisualizationInterface(const std::string& reference_frame,
+                         const rclcpp::Node::SharedPtr& node,
+                         rclcpp::Logger log);
+
+  void clearAll();
 
 private:
   rclcpp::Logger m_log;

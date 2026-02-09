@@ -271,6 +271,7 @@ RobotModel::RobotModel(const moveit::core::RobotModel& model,
                        const moveit_cpp::MoveItCppPtr& moveit_cpp,
                        rclcpp::Logger log)
   : m_log{std::move(log)}
+  , m_model_frame{model.getModelFrame()}
 {
   RCLCPP_INFO(m_log, "Parsing robot model '%s'", model.getName().c_str());
 
@@ -471,6 +472,11 @@ const GroupInterface& RobotModel::findEndEffector(const std::string& name) const
     throw std::runtime_error{
       "Cannot choose default end effector as there are multiple possible groups defined"};
   }
+}
+
+const std::string& RobotModel::modelFrame() const
+{
+  return m_model_frame;
 }
 
 } // namespace manipulation_pipeline

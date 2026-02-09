@@ -42,6 +42,8 @@
 
 #include <fmt/format.h>
 #include <moveit/planning_scene/planning_scene.hpp>
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace manipulation_pipeline {
 
@@ -67,6 +69,7 @@ ExecutePath::plan(const RobotModel& robot_model,
 {
   auto& group_interface = robot_model.findChain(m_goal->joint_group);
   Planner planner{group_interface, context, params, limits, m_log};
+  const auto* tip_link = group_interface.resolveTip(m_goal->tip);
 
   const auto initial_state = context.planning_scene->getCurrentState();
 
@@ -78,14 +81,24 @@ ExecutePath::plan(const RobotModel& robot_model,
   }
 
   // Visualize path
-  context.plan_visualizer->addPath(m_goal->path, m_goal->path_frame);
+  const auto current_pose_local =
+    context.planning_scene->getFrameTransform(m_goal->path_frame).inverse() *
+    context.planning_scene->getFrameTransform(tip_link->getName());
+  std::vector path_poses{current_pose_local};
+  std::transform(m_goal->path.begin(),
+                 m_goal->path.end(),
+                 std::back_inserter(path_poses),
+                 [](const auto& goal_pose) {
+                   Eigen::Isometry3d eigen_pose;
+                   tf2::convert(goal_pose, eigen_pose);
+                   return eigen_pose;
+                 });
+
+  context.plan_visualizer->addPath(path_poses, m_goal->path_frame);
   context.plan_visualizer->publish();
 
-  const auto trajectory = planner.planCartesianSequence(initial_state,
-                                                        m_goal->path_frame,
-                                                        m_goal->path,
-                                                        group_interface.resolveTip(m_goal->tip),
-                                                        planning_scene);
+  const auto trajectory = planner.planCartesianSequence(
+    initial_state, m_goal->path_frame, m_goal->path, tip_link, planning_scene);
   if (!trajectory)
   {
     throw std::runtime_error{

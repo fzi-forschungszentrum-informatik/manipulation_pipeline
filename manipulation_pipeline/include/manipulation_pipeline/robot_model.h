@@ -133,10 +133,16 @@ public:
    */
   const GroupInterface& findEndEffector(const std::string& name) const;
 
+  /*! \brief Get the model reference frame
+   */
+  const std::string& modelFrame() const;
+
 private:
   const GroupInterface* findGroup(const std::vector<std::shared_ptr<GroupInterface>>& groups) const;
 
   rclcpp::Logger m_log;
+
+  std::string m_model_frame;
 
   std::vector<std::shared_ptr<GroupInterface>> m_robot_interfaces;
   std::vector<std::shared_ptr<GroupInterface>> m_chains;

@@ -67,9 +67,22 @@ MoveToNamedPose::plan(const RobotModel& robot_model,
 {
   auto& group_interface = robot_model.findModel(m_goal->joint_group);
   Planner planner{group_interface, context, params, limits, m_log};
-
   const auto initial_state = context.planning_scene->getCurrentState();
-  const auto trajectory    = planner.plan(initial_state, m_goal->pose_name, context.planning_scene);
+
+  // Visualize request
+  moveit::core::RobotState tip_state{initial_state};
+  tip_state.setToDefaultValues(group_interface.group(), m_goal->pose_name);
+  tip_state.updateLinkTransforms();
+  for (const auto* tip_link : group_interface.tipLinks())
+  {
+    std::vector poses{initial_state.getFrameTransform(tip_link->getName()),
+                      tip_state.getFrameTransform(tip_link->getName())};
+    context.plan_visualizer->addPath(poses, robot_model.modelFrame());
+  }
+  context.plan_visualizer->publish();
+
+  // Plan trajectory
+  const auto trajectory = planner.plan(initial_state, m_goal->pose_name, context.planning_scene);
   if (!trajectory)
   {
     throw std::runtime_error{

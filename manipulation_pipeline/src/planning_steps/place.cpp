@@ -131,8 +131,13 @@ Place::plan(const RobotModel& robot_model,
   const auto retract_limits  = applyCartesianLimits(m_goal->retract.limits, limits);
 
   // Visualize path
-  std::vector path_poses{approach_pose, target_pose, retract_pose};
-  context.plan_visualizer->addPath(path_poses, context.planning_scene->getPlanningFrame());
+  const auto current_pose_local = object_target_pose_frame_transform.inverse() *
+                                  context.planning_scene->getFrameTransform(tip_link->getName());
+  std::vector path_poses{current_pose_local,
+                         object_target_pose_frame_transform.inverse() * approach_pose,
+                         object_target_pose_frame_transform.inverse() * target_pose,
+                         object_target_pose_frame_transform.inverse() * retract_pose};
+  context.plan_visualizer->addPath(path_poses, m_goal->pose.header.frame_id);
   context.plan_visualizer->publish();
 
   geometry_msgs::msg::Pose target_pose_msg;
