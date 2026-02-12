@@ -74,11 +74,14 @@ MoveToPose::plan(const RobotModel& robot_model,
   }
   const auto target_pose_frame_transform =
     context.planning_scene->getFrameTransform(m_goal->pose.header.frame_id);
+  const auto group_ref_transform =
+    context.planning_scene->getFrameTransform(group_interface.referenceLink()->getName());
 
   Eigen::Isometry3d target_pose_local;
   tf2::convert(m_goal->pose.pose, target_pose_local);
 
-  const auto target_pose = target_pose_frame_transform * target_pose_local;
+  const auto target_pose =
+    group_ref_transform.inverse() * target_pose_frame_transform * target_pose_local;
 
   // Visualize path
   const auto current_pose_local = target_pose_frame_transform.inverse() *
@@ -89,7 +92,7 @@ MoveToPose::plan(const RobotModel& robot_model,
 
   // Plan trajectory
   geometry_msgs::msg::PoseStamped target_pose_msg;
-  target_pose_msg.header.frame_id = context.planning_scene->getPlanningFrame();
+  target_pose_msg.header.frame_id = group_interface.referenceLink()->getName();
   tf2::convert(target_pose, target_pose_msg.pose);
 
   const auto initial_state = context.planning_scene->getCurrentState();
