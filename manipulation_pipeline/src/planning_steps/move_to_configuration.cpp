@@ -69,19 +69,30 @@ MoveToConfiguration::plan(const RobotModel& robot_model,
   auto& group_interface = robot_model.findModel(m_goal->joint_group);
   Planner planner{group_interface, context, params, limits, m_log};
 
+  // Select joint models
+  const std::vector<std::string>* joint_names = &m_goal->joint_names;
+  if (joint_names->empty())
+  {
+    joint_names = &group_interface.group()->getActiveJointModelNames();
+  }
+
   // Set up start and target state
   const auto initial_state = context.planning_scene->getCurrentState();
 
-  if (m_goal->positions.size() != group_interface.group()->getVariableCount())
+  if (m_goal->positions.size() != joint_names->size())
   {
     throw std::runtime_error{fmt::format("Invalid number of joint positions: Expected {}, got {}",
-                                         group_interface.group()->getVariableCount(),
+                                         joint_names->size(),
                                          m_goal->positions.size())};
   }
 
   moveit::core::RobotState target_state{initial_state};
-  target_state.setJointGroupPositions(group_interface.group(), m_goal->positions);
+  for (std::size_t i = 0; i < joint_names->size(); ++i)
+  {
+    target_state.setJointPositions((*joint_names)[i], &m_goal->positions[i]);
+  }
 
+  // Plan trajectory
   const auto trajectory = planner.plan(initial_state, target_state, context.planning_scene);
   if (!trajectory)
   {

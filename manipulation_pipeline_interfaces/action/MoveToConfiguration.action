@@ -4,8 +4,14 @@
 # If this is empty, a default group is assumed. This is only possible if there is exactly one group in robot_description_semantic that is not designated as an end-effector.
 string joint_group
 
+# Joint names to specify configuration for
+# All joints need to be part of joint_group, but can differ in order.
+# If left empty, all active joints in joint_group will be used as default.
+string[] joint_names
+
 # Joint positions
-# This needs to match up with the number of active joints in joint_group.
+# If joint_names is specified, this needs to be of the same size.
+# Otherwise, this has to have one entry per joint in joint_group.
 float64[] positions
 
 # Motion parameters to use during execution
