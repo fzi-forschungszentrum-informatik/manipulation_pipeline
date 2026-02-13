@@ -1,0 +1,28 @@
+# Plan and execute a motion to a joint configuration
+
+# Joint model group to use
+# If this is empty, a default group is assumed. This is only possible if there is exactly one group in robot_description_semantic that is not designated as an end-effector.
+string joint_group
+
+# Joint names to specify configuration for
+# All joints need to be part of joint_group, but can differ in order.
+# If left empty, all active joints in joint_group will be used as default.
+string[] joint_names
+
+# Joint positions
+# If joint_names is specified, this needs to be of the same size.
+# Otherwise, this has to have one entry per joint in joint_group.
+float64[] positions
+
+# Motion parameters to use during execution
+# If left unchanged, defaults from mapi configuration will be used.
+MotionParameters motion_parameters
+
+# Controller to use for trajectory execution
+# If left empty, a default controller is used
+string controller
+---
+bool success
+string message
+---
+Progress progress

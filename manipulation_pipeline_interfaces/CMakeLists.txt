@@ -13,6 +13,7 @@ rosidl_generate_interfaces(
     action/ActuateTool.action
     action/ExecutePath.action
     action/Grasp.action
+    action/MoveToConfiguration.action
     action/MoveToNamedPose.action
     action/MoveToPose.action
     action/Place.action

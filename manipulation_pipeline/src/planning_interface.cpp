@@ -38,6 +38,7 @@
 #include "manipulation_pipeline/planning_steps/actuate_tool.h"
 #include "manipulation_pipeline/planning_steps/execute_path.h"
 #include "manipulation_pipeline/planning_steps/grasp.h"
+#include "manipulation_pipeline/planning_steps/move_to_configuration.h"
 #include "manipulation_pipeline/planning_steps/move_to_named_pose.h"
 #include "manipulation_pipeline/planning_steps/move_to_pose.h"
 #include "manipulation_pipeline/planning_steps/place.h"
@@ -66,6 +67,16 @@ PlanningInterface::PlanningInterface(std::shared_ptr<PlanningPipeline> planning_
       [this](const auto& uuid, auto goal) { return actionGoalCb<MoveToPoseAction>(uuid, goal); },
       [this](auto goal_handle) { return actionCancelCb(goal_handle); },
       [this](auto goal_handle) { actionAcceptCb<MoveToPoseAction, MoveToPose>(goal_handle); })}
+  , m_move_to_configuration{rclcpp_action::create_server<MoveToConfigurationAction>(
+      node,
+      "~/move_to_configuration",
+      [this](const auto& uuid, auto goal) {
+        return actionGoalCb<MoveToConfigurationAction>(uuid, goal);
+      },
+      [this](auto goal_handle) { return actionCancelCb(goal_handle); },
+      [this](auto goal_handle) {
+        actionAcceptCb<MoveToConfigurationAction, MoveToConfiguration>(goal_handle);
+      })}
   , m_grasp{rclcpp_action::create_server<GraspAction>(
       node,
       "~/grasp",
