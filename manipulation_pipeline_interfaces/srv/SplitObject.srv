@@ -1,0 +1,12 @@
+# Replace one collision object with multiple objects
+
+# Name of the object to be split
+string name
+
+# Set of objects spawned as replacement for object 'name'
+# Each object will be spawned at the pose of the current object, applying the offset stored in the component.
+# If the previous object was attached to some link, each component will get attached to it as well.
+ObjectComponent[] components
+---
+bool success
+string message
