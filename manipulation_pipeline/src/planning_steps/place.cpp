@@ -72,25 +72,39 @@ Place::plan(const RobotModel& robot_model,
   const auto& attached_body = *getAttachedBody(m_goal->object_name, *context.planning_scene);
   const auto* tip_link      = attached_body.getAttachedLink();
 
-  // Get tip offset
+  // Get local target pose
   const auto tip_offset = attached_body.getPose();
 
-  // Resolve target pose
+  Eigen::Isometry3d target_object_pose_local;
+  tf2::convert(m_goal->pose.pose, target_object_pose_local);
+
+  const auto target_pose_local = target_object_pose_local * tip_offset.inverse();
+
+  // Transform poses to reference frame
   if (!context.planning_scene->knowsFrameTransform(m_goal->pose.header.frame_id))
   {
     throw std::runtime_error{
       fmt::format("Unknown target pose frame '{}'", m_goal->pose.header.frame_id)};
   }
-  const auto object_target_pose_frame_transform =
+  const auto object_frame_transform =
     context.planning_scene->getFrameTransform(m_goal->pose.header.frame_id);
 
-  Eigen::Isometry3d object_target_pose_local;
-  tf2::convert(m_goal->pose.pose, object_target_pose_local);
+  const auto reference_frame           = planning_interface.referenceLink()->getName();
+  const auto reference_frame_transform = context.planning_scene->getFrameTransform(reference_frame);
 
-  const auto object_target_pose = object_target_pose_frame_transform * object_target_pose_local;
+  const Eigen::Isometry3d local_to_reference_transform =
+    reference_frame_transform.inverse() * object_frame_transform;
 
-  // Resolve tip target pose
-  const auto target_pose = tip_offset.inverse() * object_target_pose;
+  const auto target_pose = local_to_reference_transform * target_pose_local;
+
+  // Get approach and retract frames based on target frame
+  const double approach_dist = m_goal->approach.distance == 0.0 ? 0.1 : m_goal->approach.distance;
+  const auto approach_pose =
+    target_pose * Eigen::Isometry3d{Eigen::Translation3d{0, 0, -approach_dist}};
+
+  const double retract_dist = m_goal->retract.distance == 0.0 ? 0.1 : m_goal->retract.distance;
+  const auto retract_pose =
+    target_pose * Eigen::Isometry3d{Eigen::Translation3d{0, 0, -retract_dist}};
 
   // Messages for collision object removal
   // If we want to attach the object to a different link afterwards, we need seperate REMOVE and ADD
@@ -116,32 +130,20 @@ Place::plan(const RobotModel& robot_model,
   robot_trajectory::RobotTrajectoryPtr result_retract_trajectory;
   std::shared_ptr<manipulation_pipeline::Action> tool_action;
 
-  // Get approach and retract frames based on target frame
-  const double approach_dist = m_goal->approach.distance == 0.0 ? 0.1 : m_goal->approach.distance;
-  Eigen::Isometry3d approach_pose = target_pose;
-  approach_pose.translation() +=
-    object_target_pose.rotation() * (-approach_dist * Eigen::Vector3d::UnitZ());
-
-  const double retract_dist      = m_goal->retract.distance == 0.0 ? 0.1 : m_goal->retract.distance;
-  Eigen::Isometry3d retract_pose = target_pose;
-  retract_pose.translation() += target_pose.rotation() * (-retract_dist * Eigen::Vector3d::UnitZ());
-
   // Resolve cartesian limits
   const auto approach_limits = applyCartesianLimits(m_goal->approach.limits, limits);
   const auto retract_limits  = applyCartesianLimits(m_goal->retract.limits, limits);
 
   // Visualize path
-  const auto current_pose_local = object_target_pose_frame_transform.inverse() *
-                                  context.planning_scene->getFrameTransform(tip_link->getName());
-  std::vector path_poses{current_pose_local,
-                         object_target_pose_frame_transform.inverse() * approach_pose,
-                         object_target_pose_frame_transform.inverse() * target_pose,
-                         object_target_pose_frame_transform.inverse() * retract_pose};
-  context.plan_visualizer->addPath(path_poses, m_goal->pose.header.frame_id);
+  const auto current_pose = reference_frame_transform.inverse() *
+                            context.planning_scene->getFrameTransform(tip_link->getName());
+  std::vector path_poses{current_pose, approach_pose, target_pose, retract_pose};
+  context.plan_visualizer->addPath(path_poses, reference_frame);
   context.plan_visualizer->publish();
 
+  // Target pose for setFromIk needs to be in model frame
   geometry_msgs::msg::Pose target_pose_msg;
-  tf2::convert(target_pose, target_pose_msg);
+  tf2::convert(reference_frame_transform * target_pose, target_pose_msg);
 
   const auto initial_state          = context.planning_scene->getCurrentState();
   moveit::core::RobotState ik_state = initial_state;
@@ -168,7 +170,7 @@ Place::plan(const RobotModel& robot_model,
 
           RCLCPP_DEBUG(m_log, "Planning cartesian approach trajectory");
           auto cartesian_approach_trajectory = planner.planCartesian(*state,
-                                                                     robot_model.modelFrame(),
+                                                                     reference_frame,
                                                                      approach_pose,
                                                                      tip_link,
                                                                      cartesian_planning_scene,
@@ -197,7 +199,7 @@ Place::plan(const RobotModel& robot_model,
 
           RCLCPP_DEBUG(m_log, "Planning cartesian retract trajectory");
           auto cartesian_retract_trajectory = planner.planCartesian(*state,
-                                                                    robot_model.modelFrame(),
+                                                                    reference_frame,
                                                                     retract_pose,
                                                                     tip_link,
                                                                     cartesian_planning_scene,
