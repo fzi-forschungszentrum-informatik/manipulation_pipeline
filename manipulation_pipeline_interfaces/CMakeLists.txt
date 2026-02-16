@@ -18,10 +18,12 @@ rosidl_generate_interfaces(
     action/MoveToPose.action
     action/Place.action
     srv/SpawnObject.srv
+    srv/SplitObject.srv
     msg/CartesianLimits.msg
     msg/CollisionPair.msg
     msg/LinearMotion.msg
     msg/MotionParameters.msg
+    msg/ObjectComponent.msg
     msg/Progress.msg
     msg/State.msg
     msg/ToolCommand.msg
