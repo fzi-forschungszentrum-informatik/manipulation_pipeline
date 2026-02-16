@@ -16,6 +16,7 @@ The manipulation pipeline node provides the following interfaces:
 - Action `grasp` ([Grasp](../manipulation_pipeline_interfaces/action/Grasp.action)): Move a link to an object, do a linear cartesian approach, actuate a tool and retract.
 - Action `place` ([Place](../manipulation_pipeline_interfaces/action/Place.action)): Place a previously grapsed object at a specific pose by moving there, doing a cartesian approach, actuating a tool and retracting.
 - Service `spawn_object` ([SpawnObject](../manipulation_pipeline_interfaces/srv/SpawnObject.srv)): Spawn a collision object in the MoveIt planning scene.
+- Service `split_object` ([SplitObject](../manipulation_pipeline_interfaces/srv/SplitObject.srv)): Split a collision object into multiple components.
 
 The manipulation pipeline constantly listens to the `robot_description` and `robot_description_semantic` topics.
 As soon as new descriptions are published, it restarts.
