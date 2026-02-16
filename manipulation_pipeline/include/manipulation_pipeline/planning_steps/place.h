@@ -43,6 +43,9 @@
 
 namespace manipulation_pipeline {
 
+class GroupInterface;
+
+
 /*! \brief Place a previously grasped object at a specific cartesian pose
  */
 class Place : public ActionPlanningStep<manipulation_pipeline_interfaces::action::Place>
@@ -65,6 +68,7 @@ public:
 private:
   const moveit::core::AttachedBody*
   getAttachedBody(const std::string& name,
+                  const GroupInterface& ee,
                   const planning_scene::PlanningScene& planning_scene) const;
 };
 
