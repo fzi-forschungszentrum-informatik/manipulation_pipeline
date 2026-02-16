@@ -69,8 +69,9 @@ Place::plan(const RobotModel& robot_model,
   Planner planner{planning_interface, context, params, limits, m_log};
 
   // Get attached object
-  const auto& attached_body = *getAttachedBody(m_goal->object_name, *context.planning_scene);
-  const auto* tip_link      = attached_body.getAttachedLink();
+  const auto& attached_body =
+    *getAttachedBody(m_goal->object_name, ee_interface, *context.planning_scene);
+  const auto* tip_link = attached_body.getAttachedLink();
 
   // Get tip offset
   const auto tip_offset = attached_body.getPose();
@@ -255,15 +256,17 @@ Place::plan(const RobotModel& robot_model,
 
 const moveit::core::AttachedBody*
 Place::getAttachedBody(const std::string& name,
+                       const GroupInterface& ee,
                        const planning_scene::PlanningScene& planning_scene) const
 {
   // Get all attached bodies
   std::vector<const moveit::core::AttachedBody*> attached_bodies;
-  planning_scene.getCurrentState().getAttachedBodies(attached_bodies);
+  planning_scene.getCurrentState().getAttachedBodies(attached_bodies, ee.group());
 
   if (attached_bodies.empty())
   {
-    throw std::runtime_error{"There are currently no attached objects"};
+    throw std::runtime_error{
+      fmt::format("There are currently no objects attached to group {}", ee.name())};
   }
 
   // Try default object
