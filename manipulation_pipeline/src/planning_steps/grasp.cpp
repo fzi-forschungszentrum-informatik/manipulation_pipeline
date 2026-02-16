@@ -105,7 +105,7 @@ Grasp::plan(const RobotModel& robot_model,
   const auto reference_frame_transform = context.planning_scene->getFrameTransform(reference_frame);
 
   const Eigen::Isometry3d collision_object_to_reference_transform =
-    collision_object_frame_transform.inverse() * reference_frame_transform;
+    reference_frame_transform.inverse() * collision_object_frame_transform;
   const auto target_pose   = collision_object_to_reference_transform * target_pose_local;
   const auto approach_pose = collision_object_to_reference_transform * approach_pose_local;
   const auto retract_pose  = collision_object_to_reference_transform * retract_pose_local;
