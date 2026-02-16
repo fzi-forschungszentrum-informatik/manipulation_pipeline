@@ -81,45 +81,44 @@ Grasp::plan(const RobotModel& robot_model,
   const auto collision_object = getCollisionObject(*(context.planning_scene));
   const auto [collision_object_target_pose, subframe_offset] = resolveTargetPose(collision_object);
 
-  // Transform target pose to model frame
-  if (!context.planning_scene->knowsFrameTransform(collision_object_target_pose.header.frame_id))
-  {
-    throw std::runtime_error{fmt::format("Unknown collision object target pose frame '{}'",
-                                         collision_object_target_pose.header.frame_id)};
-  }
-  const auto target_pose_frame_transform =
-    context.planning_scene->getFrameTransform(collision_object_target_pose.header.frame_id);
+  const auto target_pose_local = collision_object_target_pose * subframe_offset;
 
-  Eigen::Isometry3d target_pose_local;
-  tf2::convert(collision_object_target_pose.pose, target_pose_local);
-  Eigen::Isometry3d target_pose_subframe_offset;
-  tf2::convert(subframe_offset, target_pose_subframe_offset);
-
-  const auto target_pose =
-    target_pose_frame_transform * target_pose_local * target_pose_subframe_offset;
-
-  // Get approach and retract frames based on target frame
+  // Resolve approach and retract poses
   const double approach_dist = m_goal->approach.distance == 0.0 ? 0.1 : m_goal->approach.distance;
-  Eigen::Isometry3d approach_pose = target_pose;
-  approach_pose.translation() +=
-    target_pose.rotation() * (-approach_dist * Eigen::Vector3d::UnitZ());
+  const auto approach_pose_local =
+    target_pose_local * Eigen::Isometry3d{Eigen::Translation3d{0, 0, -approach_dist}};
 
-  const double retract_dist      = m_goal->retract.distance == 0.0 ? 0.1 : m_goal->retract.distance;
-  Eigen::Isometry3d retract_pose = target_pose;
-  retract_pose.translation() += target_pose.rotation() * (-retract_dist * Eigen::Vector3d::UnitZ());
+  const double retract_dist = m_goal->retract.distance == 0.0 ? 0.1 : m_goal->retract.distance;
+  const auto retract_pose_local =
+    target_pose_local * Eigen::Isometry3d{Eigen::Translation3d{0, 0, -retract_dist}};
+
+  // Transform poses into group reference frame
+  if (!context.planning_scene->knowsFrameTransform(collision_object.header.frame_id))
+  {
+    throw std::runtime_error{
+      fmt::format("Unknown collision object pose frame '{}'", collision_object.header.frame_id)};
+  }
+  const auto collision_object_frame_transform =
+    context.planning_scene->getFrameTransform(collision_object.header.frame_id);
+
+  const auto reference_frame           = planning_interface.referenceLink()->getName();
+  const auto reference_frame_transform = context.planning_scene->getFrameTransform(reference_frame);
+
+  const Eigen::Isometry3d collision_object_to_reference_transform =
+    collision_object_frame_transform.inverse() * reference_frame_transform;
+  const auto target_pose   = collision_object_to_reference_transform * target_pose_local;
+  const auto approach_pose = collision_object_to_reference_transform * approach_pose_local;
+  const auto retract_pose  = collision_object_to_reference_transform * retract_pose_local;
 
   // Resolve cartesian limits
   const auto approach_limits = applyCartesianLimits(m_goal->approach.limits, limits);
   const auto retract_limits  = applyCartesianLimits(m_goal->retract.limits, limits);
 
   // Visualize path
-  const auto current_pose_local = target_pose_frame_transform.inverse() *
-                                  context.planning_scene->getFrameTransform(tip_link->getName());
-  std::vector path_poses{current_pose_local,
-                         target_pose_frame_transform.inverse() * approach_pose,
-                         target_pose_local * target_pose_subframe_offset,
-                         target_pose_frame_transform.inverse() * retract_pose};
-  context.plan_visualizer->addPath(path_poses, collision_object_target_pose.header.frame_id);
+  const auto current_pose = reference_frame_transform.inverse() *
+                            context.planning_scene->getFrameTransform(tip_link->getName());
+  std::vector path_poses{current_pose, approach_pose, target_pose, retract_pose};
+  context.plan_visualizer->addPath(path_poses, reference_frame);
   context.plan_visualizer->publish();
 
   // Do planning inside IK loop
@@ -129,8 +128,9 @@ Grasp::plan(const RobotModel& robot_model,
   robot_trajectory::RobotTrajectoryPtr result_retract_trajectory;
   std::shared_ptr<manipulation_pipeline::Action> tool_action;
 
+  // Target pose for setFromIk needs to be in model frame
   geometry_msgs::msg::Pose target_pose_msg;
-  tf2::convert(target_pose, target_pose_msg);
+  tf2::convert(reference_frame_transform * target_pose, target_pose_msg);
 
   // Allow collisions between collision object and end effector
   const auto& ee_links = ee_interface.group()->getLinkModels();
@@ -170,9 +170,13 @@ Grasp::plan(const RobotModel& robot_model,
               disabled_collision.link1, disabled_collision.link2, true);
           }
 
-          RCLCPP_DEBUG(m_log, "Planning cartesian approach trajectory");
-          auto cartesian_approach_trajectory = planner.planCartesian(
-            *state, approach_pose, tip_link, cartesian_planning_scene, &approach_limits);
+          RCLCPP_INFO(m_log, "Planning cartesian approach trajectory");
+          auto cartesian_approach_trajectory = planner.planCartesian(*state,
+                                                                     reference_frame,
+                                                                     approach_pose,
+                                                                     tip_link,
+                                                                     cartesian_planning_scene,
+                                                                     &approach_limits);
           if (!cartesian_approach_trajectory || cartesian_approach_trajectory->empty())
           {
             return false;
@@ -180,7 +184,7 @@ Grasp::plan(const RobotModel& robot_model,
           cartesian_approach_trajectory->reverse();
 
           // Clone planning scene in order to properly handle attached object
-          RCLCPP_DEBUG(m_log, "Creating tool action and cloned planning scene");
+          RCLCPP_INFO(m_log, "Creating tool action and cloned planning scene");
           const auto attached_planning_scene =
             planning_scene::PlanningScene::clone(context.planning_scene);
 
@@ -191,11 +195,15 @@ Grasp::plan(const RobotModel& robot_model,
                                          m_goal->grasp_action);
           attached_planning_scene->processAttachedCollisionObjectMsg(attached_collision_object);
 
-          RCLCPP_DEBUG(m_log, "Planning cartesian retract trajectory");
+          RCLCPP_INFO(m_log, "Planning cartesian retract trajectory");
           // TODO: Why does this not work with attached_planning_scene instead of
           // context.planning_scene?
-          auto cartesian_retract_trajectory = planner.planCartesian(
-            *state, retract_pose, tip_link, cartesian_planning_scene, &retract_limits);
+          auto cartesian_retract_trajectory = planner.planCartesian(*state,
+                                                                    reference_frame,
+                                                                    retract_pose,
+                                                                    tip_link,
+                                                                    cartesian_planning_scene,
+                                                                    &retract_limits);
           // planner.planCartesian(*state, retract_pose, tip_link, attached_planning_scene);
           if (!cartesian_retract_trajectory)
           {
@@ -203,7 +211,7 @@ Grasp::plan(const RobotModel& robot_model,
           }
 
           // Plan ptp motion with original scene (without attached object)
-          RCLCPP_DEBUG(m_log, "Planning PTP approach");
+          RCLCPP_INFO(m_log, "Planning PTP approach");
           const auto ptp_approach_trajectory =
             planner.plan(initial_state,
                          cartesian_approach_trajectory->getFirstWayPoint(),
@@ -267,20 +275,17 @@ Grasp::getCollisionObject(const planning_scene::PlanningScene& planning_scene) c
   throw std::runtime_error{fmt::format("No object named '{}'", object_name)};
 }
 
-std::pair<geometry_msgs::msg::PoseStamped, geometry_msgs::msg::Pose>
+std::pair<Eigen::Isometry3d, Eigen::Isometry3d>
 Grasp::resolveTargetPose(const moveit_msgs::msg::CollisionObject& object) const
 {
   const auto& subframe = m_goal->subframe;
 
-  geometry_msgs::msg::PoseStamped pose;
-  pose.header.frame_id = object.header.frame_id;
-  pose.pose            = object.pose;
-
-  geometry_msgs::msg::Pose subframe_offset;
+  Eigen::Isometry3d pose;
+  tf2::convert(object.pose, pose);
+  Eigen::Isometry3d subframe_offset = Eigen::Isometry3d::Identity();
 
   if (subframe.empty())
   {
-    pose.pose = object.pose;
     return std::make_pair(pose, subframe_offset);
   }
 
@@ -295,7 +300,9 @@ Grasp::resolveTargetPose(const moveit_msgs::msg::CollisionObject& object) const
       subframe_it != subframe_names.end())
   {
     const auto i = subframe_it - subframe_names.begin();
-    return std::make_pair(pose, object.subframe_poses[i]);
+
+    tf2::convert(object.subframe_poses[i], subframe_offset);
+    return std::make_pair(pose, subframe_offset);
   }
   else
   {

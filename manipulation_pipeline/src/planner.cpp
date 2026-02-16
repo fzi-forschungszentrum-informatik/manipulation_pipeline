@@ -144,6 +144,7 @@ Planner::plan(const moveit::core::RobotState& initial_state,
 
 robot_trajectory::RobotTrajectoryPtr
 Planner::planCartesian(const moveit::core::RobotState& initial_state,
+                       const std::string& target_frame,
                        const Eigen::Isometry3d& target_pose,
                        const moveit::core::LinkModel* tip,
                        const planning_scene::PlanningScenePtr& planning_scene,
@@ -152,12 +153,8 @@ Planner::planCartesian(const moveit::core::RobotState& initial_state,
   geometry_msgs::msg::Pose target_pose_msg;
   tf2::convert(target_pose, target_pose_msg);
 
-  return planCartesianSequence(initial_state,
-                               initial_state.getRobotModel()->getModelFrame(),
-                               {target_pose_msg},
-                               tip,
-                               planning_scene,
-                               limits);
+  return planCartesianSequence(
+    initial_state, target_frame, {target_pose_msg}, tip, planning_scene, limits);
 }
 
 robot_trajectory::RobotTrajectoryPtr
@@ -168,7 +165,10 @@ Planner::planCartesianSequence(const moveit::core::RobotState& initial_state,
                                const planning_scene::PlanningScenePtr& planning_scene,
                                const manipulation_pipeline_interfaces::msg::CartesianLimits* limits)
 {
-  RCLCPP_INFO(m_log, "Planning cartesian motion along %zu waypoints", waypoints.size());
+  RCLCPP_INFO(m_log,
+              "Planning cartesian motion along %zu waypoints in frame %s",
+              waypoints.size(),
+              waypoint_frame.c_str());
   if (waypoints.empty())
   {
     return robot_trajectory::RobotTrajectoryPtr{};
@@ -227,7 +227,16 @@ Planner::planCartesianSequence(const moveit::core::RobotState& initial_state,
   waypoint_pose.header.frame_id = waypoint_frame;
   for (std::size_t i = 0; i < waypoints.size(); ++i)
   {
-    RCLCPP_INFO(m_log, "Planning waypoint %zu", i);
+    RCLCPP_INFO(m_log,
+                "Planning waypoint %zu: [%.05f, %.05f, %.05f](%.02f, %.02f, %.02f, %.02f)",
+                i,
+                waypoints[i].position.x,
+                waypoints[i].position.y,
+                waypoints[i].position.z,
+                waypoints[i].orientation.x,
+                waypoints[i].orientation.y,
+                waypoints[i].orientation.z,
+                waypoints[i].orientation.w);
 
     waypoint_pose.pose = waypoints[i];
 

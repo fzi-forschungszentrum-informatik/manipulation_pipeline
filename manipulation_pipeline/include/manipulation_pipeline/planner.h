@@ -86,6 +86,7 @@ public:
 
   robot_trajectory::RobotTrajectoryPtr
   planCartesian(const moveit::core::RobotState& initial_state,
+                const std::string& target_frame,
                 const Eigen::Isometry3d& target_pose,
                 const moveit::core::LinkModel* tip,
                 const planning_scene::PlanningScenePtr& planning_scene,

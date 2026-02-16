@@ -39,6 +39,7 @@
 
 #include "manipulation_pipeline/planning_step.h"
 
+#include <Eigen/Geometry>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <manipulation_pipeline_interfaces/action/grasp.hpp>
 #include <moveit/planning_scene/planning_scene.hpp>
@@ -72,7 +73,7 @@ private:
   moveit_msgs::msg::CollisionObject
   getCollisionObject(const planning_scene::PlanningScene& planning_scene) const;
 
-  std::pair<geometry_msgs::msg::PoseStamped, geometry_msgs::msg::Pose>
+  std::pair<Eigen::Isometry3d, Eigen::Isometry3d>
   resolveTargetPose(const moveit_msgs::msg::CollisionObject& object) const;
 };
 
