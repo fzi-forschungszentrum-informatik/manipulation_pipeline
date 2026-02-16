@@ -227,7 +227,16 @@ Planner::planCartesianSequence(const moveit::core::RobotState& initial_state,
   waypoint_pose.header.frame_id = waypoint_frame;
   for (std::size_t i = 0; i < waypoints.size(); ++i)
   {
-    RCLCPP_INFO(m_log, "Planning waypoint %zu", i);
+    RCLCPP_INFO(m_log,
+                "Planning waypoint %zu: [%.05f, %.05f, %.05f](%.02f, %.02f, %.02f, %.02f)",
+                i,
+                waypoints[i].position.x,
+                waypoints[i].position.y,
+                waypoints[i].position.z,
+                waypoints[i].orientation.x,
+                waypoints[i].orientation.y,
+                waypoints[i].orientation.z,
+                waypoints[i].orientation.w);
 
     waypoint_pose.pose = waypoints[i];
 
