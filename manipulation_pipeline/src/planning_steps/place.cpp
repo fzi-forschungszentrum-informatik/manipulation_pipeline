@@ -167,8 +167,12 @@ Place::plan(const RobotModel& robot_model,
           }
 
           RCLCPP_DEBUG(m_log, "Planning cartesian approach trajectory");
-          auto cartesian_approach_trajectory = planner.planCartesian(
-            *state, approach_pose, tip_link, cartesian_planning_scene, &approach_limits);
+          auto cartesian_approach_trajectory = planner.planCartesian(*state,
+                                                                     robot_model.modelFrame(),
+                                                                     approach_pose,
+                                                                     tip_link,
+                                                                     cartesian_planning_scene,
+                                                                     &approach_limits);
           if (!cartesian_approach_trajectory || cartesian_approach_trajectory->empty())
           {
             return false;
@@ -192,8 +196,12 @@ Place::plan(const RobotModel& robot_model,
           }
 
           RCLCPP_DEBUG(m_log, "Planning cartesian retract trajectory");
-          auto cartesian_retract_trajectory = planner.planCartesian(
-            *state, retract_pose, tip_link, cartesian_planning_scene, &retract_limits);
+          auto cartesian_retract_trajectory = planner.planCartesian(*state,
+                                                                    robot_model.modelFrame(),
+                                                                    retract_pose,
+                                                                    tip_link,
+                                                                    cartesian_planning_scene,
+                                                                    &retract_limits);
           if (!cartesian_retract_trajectory)
           {
             return false;
