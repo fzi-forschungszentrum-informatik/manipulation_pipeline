@@ -98,8 +98,8 @@ Place::plan(const RobotModel& robot_model,
 
   const auto target_pose = local_to_reference_transform * target_pose_local;
 
-  const auto approach_waypoints = convertLinearMotion(m_goal->approach, target_pose);
-  const auto retract_waypoints  = convertLinearMotion(m_goal->retract, target_pose);
+  auto approach_waypoints      = convertLinearMotion(m_goal->approach, target_pose);
+  const auto retract_waypoints = convertLinearMotion(m_goal->retract, target_pose);
 
   // Messages for collision object removal
   // If we want to attach the object to a different link afterwards, we need seperate REMOVE and ADD
@@ -142,6 +142,9 @@ Place::plan(const RobotModel& robot_model,
   // Target pose for setFromIk needs to be in model frame
   geometry_msgs::msg::Pose target_pose_msg;
   tf2::convert(reference_frame_transform * target_pose, target_pose_msg);
+
+  // We plan the approach motion in reverse
+  std::reverse(approach_waypoints.begin(), approach_waypoints.end());
 
   const auto initial_state          = context.planning_scene->getCurrentState();
   moveit::core::RobotState ik_state = initial_state;
