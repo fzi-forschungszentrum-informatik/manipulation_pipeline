@@ -60,12 +60,18 @@ CollisionObjectManager::CollisionObjectManager(
                 this,
                 std::placeholders::_1,
                 std::placeholders::_2))}
-  , m_split_object_service{
-      node->create_service<SplitObjectSrv>("~/split_object",
-                                           std::bind(&CollisionObjectManager::splitObjectCb,
-                                                     this,
-                                                     std::placeholders::_1,
-                                                     std::placeholders::_2))}
+  , m_split_object_service{node->create_service<SplitObjectSrv>(
+      "~/split_object",
+      std::bind(&CollisionObjectManager::splitObjectCb,
+                this,
+                std::placeholders::_1,
+                std::placeholders::_2))}
+  , m_combine_object_service{
+      node->create_service<CombineObjectsSrv>("~/combine_objects",
+                                              std::bind(&CollisionObjectManager::combineObjectsCb,
+                                                        this,
+                                                        std::placeholders::_1,
+                                                        std::placeholders::_2))}
 {
 }
 
@@ -282,6 +288,128 @@ void CollisionObjectManager::splitObjectCb(std::shared_ptr<SplitObjectSrv::Reque
   {
     response->success = false;
     response->message = fmt::format("Could not split object '{}': {}", request->name, ex.what());
+    RCLCPP_ERROR(m_log, "%s", response->message.c_str());
+  }
+}
+
+void CollisionObjectManager::combineObjectsCb(std::shared_ptr<CombineObjectsSrv::Request> request,
+                                              std::shared_ptr<CombineObjectsSrv::Response> response)
+{
+  try
+  {
+    if (request->names.empty())
+    {
+      throw std::runtime_error{"No names specified"};
+    }
+
+    // Gather collision objects and find out if they are attached to some link
+    std::vector<moveit_msgs::msg::AttachedCollisionObject> collision_objects;
+    collision_objects.reserve(request->names.size());
+    std::string attach_link;
+
+    {
+      // Check if first name is attached to something
+      planning_scene_monitor::LockedPlanningSceneRO planning_scene{m_planning_scene_monitor};
+
+      for (const auto& name : request->names)
+      {
+        collision_objects.emplace_back();
+        if (!planning_scene->getAttachedCollisionObjectMsg(collision_objects.back(), name))
+        {
+          if (!planning_scene->getCollisionObjectMsg(collision_objects.back().object, name))
+          {
+            throw std::runtime_error{
+              fmt::format("There is no collision object with name '{}'", request->names[0])};
+          }
+        }
+      }
+    }
+
+    // Create new object first -> If e.g. mesh lookup fails we don't want to delete the old objects
+    // yet
+    Eigen::Isometry3d old_pose;
+    tf2::convert(collision_objects[0].object.pose, old_pose);
+    Eigen::Isometry3d offset;
+    tf2::convert(request->new_object.offset, offset);
+
+    moveit_msgs::msg::AttachedCollisionObject new_object;
+    new_object.link_name              = collision_objects[0].link_name;
+    new_object.object.header.frame_id = collision_objects[0].object.header.frame_id;
+    tf2::convert(old_pose * offset, new_object.object.pose);
+    new_object.object.id = request->new_object.name;
+    new_object.object.meshes.push_back(loadMesh(request->new_object.path));
+    new_object.object.subframe_names = request->new_object.subframe_names;
+    new_object.object.subframe_poses = request->new_object.subframe_poses;
+    new_object.object.operation      = moveit_msgs::msg::CollisionObject::ADD;
+
+    // Remove old objects
+    for (auto& old_object : collision_objects)
+    {
+      old_object.object.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+
+      // Detach first if required
+      if (!old_object.link_name.empty())
+      {
+        RCLCPP_INFO(m_log,
+                    "Detaching object %s from link %s",
+                    old_object.object.id.c_str(),
+                    old_object.link_name.c_str());
+
+        const auto removal_object =
+          std::make_shared<moveit_msgs::msg::AttachedCollisionObject>(old_object);
+        if (!m_planning_scene_monitor->processAttachedCollisionObjectMsg(removal_object))
+        {
+          throw std::runtime_error{fmt::format("Unable to detach object {} from link {}",
+                                               removal_object->object.id,
+                                               removal_object->link_name)};
+        }
+      }
+
+      // Remove object
+      const auto removal_object =
+        std::make_shared<moveit_msgs::msg::CollisionObject>(old_object.object);
+      RCLCPP_INFO(m_log, "Removing object %s", old_object.object.id.c_str());
+      if (!m_planning_scene_monitor->processCollisionObjectMsg(removal_object))
+      {
+        throw std::runtime_error{fmt::format("Unable to remove object {}", removal_object->id)};
+      }
+    }
+
+    // Spawn new object
+    RCLCPP_INFO(m_log, "Spawning new object %s", new_object.object.id.c_str());
+    const auto spawn_object =
+      std::make_shared<moveit_msgs::msg::CollisionObject>(new_object.object);
+    if (!m_planning_scene_monitor->processCollisionObjectMsg(spawn_object))
+    {
+      throw std::runtime_error{
+        fmt::format("Unable to spawn new collision object {}", spawn_object->id)};
+    }
+
+    // Attach object if old object was attached
+    if (!new_object.link_name.empty())
+    {
+      const auto attach_object =
+        std::make_shared<moveit_msgs::msg::AttachedCollisionObject>(new_object);
+      if (!m_planning_scene_monitor->processAttachedCollisionObjectMsg(attach_object))
+      {
+        throw std::runtime_error{fmt::format("Unable to attach new collision object {} to link {}",
+                                             attach_object->object.id,
+                                             attach_object->link_name)};
+      }
+    }
+
+    response->success = true;
+    response->message = fmt::format(
+      "Successfully combined {} objects into {}", request->names.size(), request->new_object.name);
+    RCLCPP_INFO(m_log, "%s", response->message.c_str());
+  }
+  catch (const std::runtime_error& ex)
+  {
+    response->success = false;
+    response->message = fmt::format("Unable to combine {} objects into {}: {}",
+                                    request->names.size(),
+                                    request->new_object.name,
+                                    ex.what());
     RCLCPP_ERROR(m_log, "%s", response->message.c_str());
   }
 }

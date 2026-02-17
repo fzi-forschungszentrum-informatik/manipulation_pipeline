@@ -1,0 +1,12 @@
+# Replace multiple collision objects with one
+
+# Names of objects to be removed
+string[] names
+
+# Object that will be spawned as replacement for the listed objects
+# It will be spawned at the pose of the first listed object.
+# If that object was attached to a link, the new one will be too.
+ObjectComponent new_object
+---
+bool success
+string message

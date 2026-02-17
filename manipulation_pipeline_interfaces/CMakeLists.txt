@@ -17,6 +17,7 @@ rosidl_generate_interfaces(
     action/MoveToNamedPose.action
     action/MoveToPose.action
     action/Place.action
+    srv/CombineObjects.srv
     srv/SpawnObject.srv
     srv/SplitObject.srv
     msg/CartesianLimits.msg

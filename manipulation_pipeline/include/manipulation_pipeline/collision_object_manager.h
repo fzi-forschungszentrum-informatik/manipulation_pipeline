@@ -37,6 +37,7 @@
 #ifndef MANIPULATION_PIPELINE_COLLISION_OBJECT_MANAGER_H_INCLUDED
 #define MANIPULATION_PIPELINE_COLLISION_OBJECT_MANAGER_H_INCLUDED
 
+#include <manipulation_pipeline_interfaces/srv/combine_objects.hpp>
 #include <manipulation_pipeline_interfaces/srv/spawn_object.hpp>
 #include <manipulation_pipeline_interfaces/srv/split_object.hpp>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.hpp>
@@ -67,6 +68,10 @@ private:
   void splitObjectCb(std::shared_ptr<SplitObjectSrv::Request> request,
                      std::shared_ptr<SplitObjectSrv::Response> response);
 
+  using CombineObjectsSrv = manipulation_pipeline_interfaces::srv::CombineObjects;
+  void combineObjectsCb(std::shared_ptr<CombineObjectsSrv::Request> request,
+                        std::shared_ptr<CombineObjectsSrv::Response> response);
+
   shape_msgs::msg::Mesh loadMesh(const std::string& path) const;
 
   rclcpp::Logger m_log;
@@ -75,6 +80,7 @@ private:
 
   rclcpp::Service<SpawnObjectSrv>::SharedPtr m_spawn_object_service;
   rclcpp::Service<SplitObjectSrv>::SharedPtr m_split_object_service;
+  rclcpp::Service<CombineObjectsSrv>::SharedPtr m_combine_object_service;
 };
 
 } // namespace manipulation_pipeline
