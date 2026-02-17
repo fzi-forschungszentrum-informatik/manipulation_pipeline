@@ -39,6 +39,9 @@
 #include "manipulation_pipeline/actions/execute_trajectory.h"
 #include "manipulation_pipeline/planner.h"
 
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
 namespace manipulation_pipeline {
 
 moveit_cpp::PlanningComponent::PlanRequestParameters applyMotionParameters(
@@ -166,13 +169,25 @@ PlanningStep::convertLinearMotion(const manipulation_pipeline_interfaces::msg::L
                                   const Eigen::Isometry3d& offset) const
 {
   std::vector<Eigen::Isometry3d> waypoints;
-  Eigen::Isometry3d buf;
 
   switch (msg.motion_type)
   {
     case manipulation_pipeline_interfaces::msg::LinearMotion::MOTION_TYPE_LINEAR: {
       const auto dist = (msg.distance == 0.0) ? 0.1 : msg.distance;
       waypoints.push_back(offset * Eigen::Isometry3d{Eigen::Translation3d{0, 0, -dist}});
+      break;
+    }
+
+    case manipulation_pipeline_interfaces::msg::LinearMotion::MOTION_TYPE_PATH: {
+      Eigen::Isometry3d buf;
+      waypoints.reserve(msg.waypoints.size());
+      std::transform(msg.waypoints.begin(),
+                     msg.waypoints.end(),
+                     std::back_inserter(waypoints),
+                     [&](const auto& msg) {
+                       tf2::convert(msg, buf);
+                       return offset * buf;
+                     });
       break;
     }
 
