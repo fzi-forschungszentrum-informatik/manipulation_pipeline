@@ -100,8 +100,8 @@ Grasp::plan(const RobotModel& robot_model,
   const auto target_pose = collision_object_to_reference_transform * target_pose_local;
 
   // Get waypoints for approach and retraction
-  const auto approach_waypoints = convertLinearMotion(m_goal->approach, target_pose);
-  const auto retract_waypoints  = convertLinearMotion(m_goal->retract, target_pose);
+  auto approach_waypoints      = convertLinearMotion(m_goal->approach, target_pose);
+  const auto retract_waypoints = convertLinearMotion(m_goal->retract, target_pose);
 
   // Resolve cartesian limits
   const auto approach_limits = applyCartesianLimits(m_goal->approach.limits, limits);
@@ -142,6 +142,9 @@ Grasp::plan(const RobotModel& robot_model,
   attached_collision_object.object.operation = moveit_msgs::msg::CollisionObject::ADD;
   attached_collision_object.link_name        = tip_link->getName();
   attached_collision_object.touch_links      = ee_link_names;
+
+  // We plan in reverse, starting from ik at target pose
+  std::reverse(approach_waypoints.begin(), approach_waypoints.end());
 
   const auto initial_state          = context.planning_scene->getCurrentState();
   moveit::core::RobotState ik_state = initial_state;
