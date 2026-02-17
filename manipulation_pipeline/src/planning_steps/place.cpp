@@ -98,14 +98,8 @@ Place::plan(const RobotModel& robot_model,
 
   const auto target_pose = local_to_reference_transform * target_pose_local;
 
-  // Get approach and retract frames based on target frame
-  const double approach_dist = m_goal->approach.distance == 0.0 ? 0.1 : m_goal->approach.distance;
-  const auto approach_pose =
-    target_pose * Eigen::Isometry3d{Eigen::Translation3d{0, 0, -approach_dist}};
-
-  const double retract_dist = m_goal->retract.distance == 0.0 ? 0.1 : m_goal->retract.distance;
-  const auto retract_pose =
-    target_pose * Eigen::Isometry3d{Eigen::Translation3d{0, 0, -retract_dist}};
+  const auto approach_waypoints = convertLinearMotion(m_goal->approach, target_pose);
+  const auto retract_waypoints  = convertLinearMotion(m_goal->retract, target_pose);
 
   // Messages for collision object removal
   // If we want to attach the object to a different link afterwards, we need seperate REMOVE and ADD
@@ -138,7 +132,10 @@ Place::plan(const RobotModel& robot_model,
   // Visualize path
   const auto current_pose = reference_frame_transform.inverse() *
                             context.planning_scene->getFrameTransform(tip_link->getName());
-  std::vector path_poses{current_pose, approach_pose, target_pose, retract_pose};
+  std::vector path_poses{current_pose};
+  std::copy(approach_waypoints.begin(), approach_waypoints.end(), std::back_inserter(path_poses));
+  path_poses.push_back(target_pose);
+  std::copy(retract_waypoints.begin(), retract_waypoints.end(), std::back_inserter(path_poses));
   context.plan_visualizer->addPath(path_poses, reference_frame);
   context.plan_visualizer->publish();
 
@@ -170,12 +167,13 @@ Place::plan(const RobotModel& robot_model,
           }
 
           RCLCPP_DEBUG(m_log, "Planning cartesian approach trajectory");
-          auto cartesian_approach_trajectory = planner.planCartesian(*state,
-                                                                     reference_frame,
-                                                                     approach_pose,
-                                                                     tip_link,
-                                                                     cartesian_planning_scene,
-                                                                     &approach_limits);
+          auto cartesian_approach_trajectory =
+            planner.planCartesianSequence(*state,
+                                          reference_frame,
+                                          approach_waypoints,
+                                          tip_link,
+                                          cartesian_planning_scene,
+                                          &approach_limits);
           if (!cartesian_approach_trajectory || cartesian_approach_trajectory->empty())
           {
             return false;
@@ -199,12 +197,13 @@ Place::plan(const RobotModel& robot_model,
           }
 
           RCLCPP_DEBUG(m_log, "Planning cartesian retract trajectory");
-          auto cartesian_retract_trajectory = planner.planCartesian(*state,
-                                                                    reference_frame,
-                                                                    retract_pose,
-                                                                    tip_link,
-                                                                    cartesian_planning_scene,
-                                                                    &retract_limits);
+          auto cartesian_retract_trajectory =
+            planner.planCartesianSequence(*state,
+                                          reference_frame,
+                                          retract_waypoints,
+                                          tip_link,
+                                          cartesian_planning_scene,
+                                          &retract_limits);
           if (!cartesian_retract_trajectory)
           {
             return false;

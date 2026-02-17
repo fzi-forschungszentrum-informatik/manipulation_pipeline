@@ -84,13 +84,13 @@ public:
                                             const moveit::core::LinkModel* tip,
                                             const planning_scene::PlanningScenePtr& planning_scene);
 
-  robot_trajectory::RobotTrajectoryPtr
-  planCartesian(const moveit::core::RobotState& initial_state,
-                const std::string& target_frame,
-                const Eigen::Isometry3d& target_pose,
-                const moveit::core::LinkModel* tip,
-                const planning_scene::PlanningScenePtr& planning_scene,
-                const manipulation_pipeline_interfaces::msg::CartesianLimits* limits = nullptr);
+  robot_trajectory::RobotTrajectoryPtr planCartesianSequence(
+    const moveit::core::RobotState& initial_state,
+    const std::string& waypoint_frame,
+    const std::vector<Eigen::Isometry3d>& waypoints,
+    const moveit::core::LinkModel* tip,
+    const planning_scene::PlanningScenePtr& planning_scene,
+    const manipulation_pipeline_interfaces::msg::CartesianLimits* limits = nullptr);
 
   robot_trajectory::RobotTrajectoryPtr planCartesianSequence(
     const moveit::core::RobotState& initial_state,

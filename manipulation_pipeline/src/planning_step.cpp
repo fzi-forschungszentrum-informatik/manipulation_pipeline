@@ -161,4 +161,26 @@ PlanningStep::createToolAction(const GroupInterface& group_interface,
   }
 }
 
+std::vector<Eigen::Isometry3d>
+PlanningStep::convertLinearMotion(const manipulation_pipeline_interfaces::msg::LinearMotion& msg,
+                                  const Eigen::Isometry3d& offset) const
+{
+  std::vector<Eigen::Isometry3d> waypoints;
+  Eigen::Isometry3d buf;
+
+  switch (msg.motion_type)
+  {
+    case manipulation_pipeline_interfaces::msg::LinearMotion::MOTION_TYPE_LINEAR: {
+      const auto dist = (msg.distance == 0.0) ? 0.1 : msg.distance;
+      waypoints.push_back(offset * Eigen::Isometry3d{Eigen::Translation3d{0, 0, -dist}});
+      break;
+    }
+
+    default:
+      throw std::runtime_error{fmt::format("Unknon linear motion type {}", msg.motion_type)};
+  }
+
+  return waypoints;
+}
+
 } // namespace manipulation_pipeline
