@@ -41,8 +41,10 @@
 #include "manipulation_pipeline/robot_model.h"
 #include "manipulation_pipeline/visualization_interface.h"
 
+#include <Eigen/Geometry>
 #include <functional>
 #include <manipulation_pipeline_interfaces/msg/cartesian_limits.hpp>
+#include <manipulation_pipeline_interfaces/msg/linear_motion.hpp>
 #include <manipulation_pipeline_interfaces/msg/motion_parameters.hpp>
 #include <manipulation_pipeline_interfaces/msg/tool_command.hpp>
 #include <moveit/moveit_cpp/planning_component.hpp>
@@ -101,6 +103,9 @@ protected:
                    const Planner& planner,
                    moveit::core::RobotState& current_state,
                    const manipulation_pipeline_interfaces::msg::ToolCommand& cmd) const;
+  std::vector<Eigen::Isometry3d>
+  convertLinearMotion(const manipulation_pipeline_interfaces::msg::LinearMotion& msg,
+                      const Eigen::Isometry3d& offset = Eigen::Isometry3d::Identity()) const;
 
   rclcpp::Logger m_log;
 

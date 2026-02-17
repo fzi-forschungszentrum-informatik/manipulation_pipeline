@@ -143,18 +143,24 @@ Planner::plan(const moveit::core::RobotState& initial_state,
 }
 
 robot_trajectory::RobotTrajectoryPtr
-Planner::planCartesian(const moveit::core::RobotState& initial_state,
-                       const std::string& target_frame,
-                       const Eigen::Isometry3d& target_pose,
-                       const moveit::core::LinkModel* tip,
-                       const planning_scene::PlanningScenePtr& planning_scene,
-                       const manipulation_pipeline_interfaces::msg::CartesianLimits* limits)
+Planner::planCartesianSequence(const moveit::core::RobotState& initial_state,
+                               const std::string& waypoint_frame,
+                               const std::vector<Eigen::Isometry3d>& waypoints,
+                               const moveit::core::LinkModel* tip,
+                               const planning_scene::PlanningScenePtr& planning_scene,
+                               const manipulation_pipeline_interfaces::msg::CartesianLimits* limits)
 {
-  geometry_msgs::msg::Pose target_pose_msg;
-  tf2::convert(target_pose, target_pose_msg);
+  std::vector<geometry_msgs::msg::Pose> waypoint_msgs;
+  waypoint_msgs.reserve(waypoints.size());
+  std::transform(
+    waypoints.begin(), waypoints.end(), std::back_inserter(waypoint_msgs), [](const auto& wp) {
+      geometry_msgs::msg::Pose msg;
+      tf2::convert(wp, msg);
+      return msg;
+    });
 
   return planCartesianSequence(
-    initial_state, target_frame, {target_pose_msg}, tip, planning_scene, limits);
+    initial_state, waypoint_frame, waypoint_msgs, tip, planning_scene, limits);
 }
 
 robot_trajectory::RobotTrajectoryPtr
