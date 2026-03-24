@@ -54,11 +54,11 @@ ManipulationPipeline::ManipulationPipeline(const rclcpp::Node::SharedPtr& node)
   m_state.generation = 0;
   m_state_pub->publish(m_state);
 
-  reset();
+  reset(false);
   RCLCPP_INFO(node->get_logger(), "Manipulation pipeline started");
 }
 
-void ManipulationPipeline::reset()
+void ManipulationPipeline::reset(bool reset_params)
 {
   // Preserve collision objects
   std::vector<moveit_msgs::msg::CollisionObject> collision_objects;
@@ -71,13 +71,16 @@ void ManipulationPipeline::reset()
   m_moveitcpp.reset();
 
   // Clear parameters to ensure that the new descriptions are used
-  if (m_node->has_parameter("robot_description"))
+  if (reset_params)
   {
-    m_node->set_parameters({rclcpp::Parameter{"robot_description", ""}});
-  }
-  if (m_node->has_parameter("robot_description_semantic"))
-  {
-    m_node->set_parameters({rclcpp::Parameter{"robot_description_semantic", ""}});
+    if (m_node->has_parameter("robot_description"))
+    {
+      m_node->set_parameters({rclcpp::Parameter{"robot_description", ""}});
+    }
+    if (m_node->has_parameter("robot_description_semantic"))
+    {
+      m_node->set_parameters({rclcpp::Parameter{"robot_description_semantic", ""}});
+    }
   }
 
   // Set up pipeline
