@@ -59,7 +59,7 @@ public:
   explicit ManipulationPipeline(const rclcpp::Node::SharedPtr& node);
 
 private:
-  void reset();
+  void reset(bool delete_params = true);
 
   rclcpp::Node::SharedPtr m_node;
 
