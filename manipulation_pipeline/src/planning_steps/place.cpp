@@ -170,13 +170,7 @@ Place::plan(const RobotModel& robot_model,
 
           const auto cartesian_planning_scene =
             planning_scene::PlanningScene::clone(context.planning_scene);
-          auto& cartesian_planning_scene_acm =
-            cartesian_planning_scene->getAllowedCollisionMatrixNonConst();
-          for (const auto& disabled_collision : m_goal->disabled_collisions)
-          {
-            cartesian_planning_scene_acm.setEntry(
-              disabled_collision.link1, disabled_collision.link2, true);
-          }
+          disableCollisions(*cartesian_planning_scene);
 
           RCLCPP_DEBUG(m_log, "Planning cartesian approach trajectory");
           auto cartesian_approach_trajectory =

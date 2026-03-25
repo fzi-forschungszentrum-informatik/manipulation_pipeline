@@ -63,6 +63,8 @@ protected:
   virtual std::vector<Eigen::Isometry3d>
   retractWaypoints(const Eigen::Isometry3d& offset) const = 0;
 
+  virtual void disableCollisions(planning_scene::PlanningScene& planning_scene) const = 0;
+
   std::vector<Eigen::Isometry3d>
   convertLinearMotion(const manipulation_pipeline_interfaces::msg::LinearMotion& msg,
                       const Eigen::Isometry3d& offset) const;
@@ -81,6 +83,8 @@ public:
 protected:
   std::vector<Eigen::Isometry3d> approachWaypoints(const Eigen::Isometry3d& offset) const override;
   std::vector<Eigen::Isometry3d> retractWaypoints(const Eigen::Isometry3d& offset) const override;
+
+  void disableCollisions(planning_scene::PlanningScene& planning_scene) const override;
 };
 
 } // namespace manipulation_pipeline
@@ -109,6 +113,17 @@ std::vector<Eigen::Isometry3d>
 ManipulationPlanningStep<ActionT>::retractWaypoints(const Eigen::Isometry3d& offset) const
 {
   return convertLinearMotion(ActionPlanningStep<ActionT>::m_goal->retract, offset);
+}
+
+template <typename ActionT>
+void ManipulationPlanningStep<ActionT>::disableCollisions(
+  planning_scene::PlanningScene& planning_scene) const
+{
+  auto& cartesian_planning_scene_acm = planning_scene.getAllowedCollisionMatrixNonConst();
+  for (const auto& disabled_collision : ActionPlanningStep<ActionT>::m_goal->disabled_collisions)
+  {
+    cartesian_planning_scene_acm.setEntry(disabled_collision.link1, disabled_collision.link2, true);
+  }
 }
 
 } // namespace manipulation_pipeline
