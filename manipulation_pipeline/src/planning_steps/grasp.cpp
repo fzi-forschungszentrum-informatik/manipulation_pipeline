@@ -51,11 +51,11 @@
 namespace manipulation_pipeline {
 
 Grasp::Grasp(const std::shared_ptr<Handle>& handle, rclcpp::Logger log)
-  : ActionPlanningStep<Action>{handle,
-                               fmt::format("Grasp({}[{}])",
-                                           handle->handle().get_goal()->object_name,
-                                           handle->handle().get_goal()->subframe),
-                               std::move(log)}
+  : ManipulationPlanningStep<Action>{handle,
+                                     fmt::format("Grasp({}[{}])",
+                                                 handle->handle().get_goal()->object_name,
+                                                 handle->handle().get_goal()->subframe),
+                                     std::move(log)}
 {
 }
 

@@ -52,6 +52,7 @@ target_sources(manipulation_pipeline
     src/planning_steps/actuate_tool.cpp
     src/planning_steps/execute_path.cpp
     src/planning_steps/grasp.cpp
+    src/planning_steps/manipulation_planning_step.cpp
     src/planning_steps/move_to_named_pose.cpp
     src/planning_steps/move_to_pose.cpp
     src/planning_steps/move_to_configuration.cpp

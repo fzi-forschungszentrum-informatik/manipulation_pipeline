@@ -1,4 +1,4 @@
-// Copyright 2025 FZI Forschungszentrum Informatik
+// Copyright 2026 FZI Forschungszentrum Informatik
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -26,52 +26,15 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-/*!\file manipulation_pipeline/planning_steps/place.h
- * \brief Place a grapsed collision object at a specific pose
+/*!\file
  *
  * \author  Robert Wilbrandt <wilbrandt@fzi.de>
- * \date    2025-04-16
+ * \date    2026-03-25
  *
  */
 //----------------------------------------------------------------------
-#ifndef MANIPULATION_PIPELINE_PLACE_H_INCLUDED
-#define MANIPULATION_PIPELINE_PLACE_H_INCLUDED
-
 #include "manipulation_pipeline/planning_steps/manipulation_planning_step.h"
-
-#include <manipulation_pipeline_interfaces/action/place.hpp>
 
 namespace manipulation_pipeline {
 
-class GroupInterface;
-
-
-/*! \brief Place a previously grasped object at a specific cartesian pose
- */
-class Place : public ManipulationPlanningStep<manipulation_pipeline_interfaces::action::Place>
-{
-public:
-  using Action = manipulation_pipeline_interfaces::action::Place;
-  using Handle = ActionGoalHandle<Action>;
-
-  Place(const std::shared_ptr<Handle>& handle, rclcpp::Logger log);
-
-  [[nodiscard]] moveit_cpp::PlanningComponent::PlanRequestParameters applyRequestParams(
-    const moveit_cpp::PlanningComponent::PlanRequestParameters& default_params) const override;
-
-  std::shared_ptr<ActionSequence>
-  plan(const RobotModel& robot_model,
-       const moveit_cpp::PlanningComponent::PlanRequestParameters& params,
-       const manipulation_pipeline_interfaces::msg::CartesianLimits& limits,
-       PlanningContext& context) const override;
-
-private:
-  const moveit::core::AttachedBody*
-  getAttachedBody(const std::string& name,
-                  const GroupInterface& ee,
-                  const planning_scene::PlanningScene& planning_scene) const;
-};
-
 } // namespace manipulation_pipeline
-
-#endif // MANIPULATION_PIPELINE_PLACE_H_INCLUDED

@@ -48,7 +48,7 @@
 namespace manipulation_pipeline {
 
 Place::Place(const std::shared_ptr<Handle>& handle, rclcpp::Logger log)
-  : ActionPlanningStep<Action>{
+  : ManipulationPlanningStep<Action>{
       handle, fmt::format("Place([{}])", handle->handle().get_goal()->subframe), std::move(log)}
 {
 }

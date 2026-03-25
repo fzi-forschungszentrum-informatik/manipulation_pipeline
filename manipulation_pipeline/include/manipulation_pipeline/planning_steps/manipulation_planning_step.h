@@ -1,4 +1,4 @@
-// Copyright 2025 FZI Forschungszentrum Informatik
+// Copyright 2026 FZI Forschungszentrum Informatik
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -26,52 +26,64 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-/*!\file manipulation_pipeline/planning_steps/place.h
- * \brief Place a grapsed collision object at a specific pose
+/*!\file manipulation_pipeline/planning_steps/manipulation_planning_step.h
+ * \brief Base for manipulation steps that interact with collision objects
  *
  * \author  Robert Wilbrandt <wilbrandt@fzi.de>
- * \date    2025-04-16
+ * \date    2026-03-25
  *
  */
 //----------------------------------------------------------------------
-#ifndef MANIPULATION_PIPELINE_PLACE_H_INCLUDED
-#define MANIPULATION_PIPELINE_PLACE_H_INCLUDED
+#ifndef MANIPULATION_PIPELINE_MANIPULATION_PLANNING_STEPS_H_INCLUDED
+#define MANIPULATION_PIPELINE_MANIPULATION_PLANNING_STEPS_H_INCLUDED
 
-#include "manipulation_pipeline/planning_steps/manipulation_planning_step.h"
+#include "manipulation_pipeline/planning_step.h"
 
-#include <manipulation_pipeline_interfaces/action/place.hpp>
+#include <Eigen/Geometry>
+
+namespace planning_scene {
+class PlanningScene;
+}
+namespace moveit::core {
+class LinkModel;
+class JointModelGroup;
+} // namespace moveit::core
 
 namespace manipulation_pipeline {
 
-class GroupInterface;
-
-
-/*! \brief Place a previously grasped object at a specific cartesian pose
- */
-class Place : public ManipulationPlanningStep<manipulation_pipeline_interfaces::action::Place>
+class ManipulationPlanningStepBase
 {
 public:
-  using Action = manipulation_pipeline_interfaces::action::Place;
-  using Handle = ActionGoalHandle<Action>;
+  virtual ~ManipulationPlanningStepBase() = default;
 
-  Place(const std::shared_ptr<Handle>& handle, rclcpp::Logger log);
+protected:
+};
 
-  [[nodiscard]] moveit_cpp::PlanningComponent::PlanRequestParameters applyRequestParams(
-    const moveit_cpp::PlanningComponent::PlanRequestParameters& default_params) const override;
-
-  std::shared_ptr<ActionSequence>
-  plan(const RobotModel& robot_model,
-       const moveit_cpp::PlanningComponent::PlanRequestParameters& params,
-       const manipulation_pipeline_interfaces::msg::CartesianLimits& limits,
-       PlanningContext& context) const override;
-
-private:
-  const moveit::core::AttachedBody*
-  getAttachedBody(const std::string& name,
-                  const GroupInterface& ee,
-                  const planning_scene::PlanningScene& planning_scene) const;
+template <typename ActionT>
+class ManipulationPlanningStep
+  : public ActionPlanningStep<ActionT>
+  , public ManipulationPlanningStepBase
+{
+public:
+  ManipulationPlanningStep(const std::shared_ptr<ActionGoalHandle<ActionT>>& goal_handle,
+                           std::string name,
+                           rclcpp::Logger log);
 };
 
 } // namespace manipulation_pipeline
 
-#endif // MANIPULATION_PIPELINE_PLACE_H_INCLUDED
+
+namespace manipulation_pipeline {
+
+template <typename ActionT>
+ManipulationPlanningStep<ActionT>::ManipulationPlanningStep(
+  const std::shared_ptr<ActionGoalHandle<ActionT>>& goal_handle,
+  std::string name,
+  rclcpp::Logger log)
+  : ActionPlanningStep<ActionT>{goal_handle, std::move(name), std::move(log)}
+{
+}
+
+} // namespace manipulation_pipeline
+
+#endif // MANIPULATION_PIPELINE_MANIPULATION_PLANNING_STEPS_H_INCLUDE:D
