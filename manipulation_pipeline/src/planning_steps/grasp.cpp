@@ -38,6 +38,7 @@
 #include "manipulation_pipeline/action.h"
 #include "manipulation_pipeline/actions/change_attached_object.h"
 #include "manipulation_pipeline/actions/execute_trajectory.h"
+#include "manipulation_pipeline/ik_sampler.h"
 #include "manipulation_pipeline/planner.h"
 #include "manipulation_pipeline/planning_context.h"
 
@@ -145,6 +146,14 @@ Grasp::plan(const RobotModel& robot_model,
 
   // We plan in reverse, starting from ik at target pose
   std::reverse(approach_waypoints.begin(), approach_waypoints.end());
+
+  // Sample IK target poses
+  IkSampler sampler{context.planning_scene->getCurrentState(),
+                    planning_interface.group(),
+                    reference_frame_transform * target_pose,
+                    50,
+                    m_log};
+  const auto ik_samples = sampler.sampleAll();
 
   const auto initial_state          = context.planning_scene->getCurrentState();
   moveit::core::RobotState ik_state = initial_state;

@@ -23,6 +23,10 @@ foreach(DEP ${ROS_DEPENDENCIES})
   find_package(${DEP} REQUIRED)
 endforeach()
 
+find_package(Boost REQUIRED
+  COMPONENTS
+    random
+)
 find_package(fmt REQUIRED)
 
 #
@@ -38,6 +42,7 @@ target_sources(manipulation_pipeline
     src/collision_object_manager.cpp
     src/execution_pipeline.cpp
     src/goal_handle.cpp
+    src/ik_sampler.cpp
     src/manipulation_pipeline.cpp
     src/planner.cpp
     src/planning_context.cpp
@@ -70,6 +75,7 @@ ament_target_dependencies(manipulation_pipeline
   ${ROS_DEPENDENCIES}
 )
 target_link_libraries(manipulation_pipeline
+  Boost::random
   fmt::fmt
 )
 
