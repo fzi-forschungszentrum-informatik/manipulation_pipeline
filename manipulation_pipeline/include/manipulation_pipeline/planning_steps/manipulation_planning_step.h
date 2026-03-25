@@ -40,6 +40,7 @@
 #include "manipulation_pipeline/planning_step.h"
 
 #include <Eigen/Geometry>
+#include <manipulation_pipeline_interfaces/msg/linear_motion.hpp>
 
 namespace planning_scene {
 class PlanningScene;
@@ -57,6 +58,14 @@ public:
   virtual ~ManipulationPlanningStepBase() = default;
 
 protected:
+  virtual std::vector<Eigen::Isometry3d>
+  approachWaypoints(const Eigen::Isometry3d& offset) const = 0;
+  virtual std::vector<Eigen::Isometry3d>
+  retractWaypoints(const Eigen::Isometry3d& offset) const = 0;
+
+  std::vector<Eigen::Isometry3d>
+  convertLinearMotion(const manipulation_pipeline_interfaces::msg::LinearMotion& msg,
+                      const Eigen::Isometry3d& offset) const;
 };
 
 template <typename ActionT>
@@ -68,6 +77,10 @@ public:
   ManipulationPlanningStep(const std::shared_ptr<ActionGoalHandle<ActionT>>& goal_handle,
                            std::string name,
                            rclcpp::Logger log);
+
+protected:
+  std::vector<Eigen::Isometry3d> approachWaypoints(const Eigen::Isometry3d& offset) const override;
+  std::vector<Eigen::Isometry3d> retractWaypoints(const Eigen::Isometry3d& offset) const override;
 };
 
 } // namespace manipulation_pipeline
@@ -82,6 +95,20 @@ ManipulationPlanningStep<ActionT>::ManipulationPlanningStep(
   rclcpp::Logger log)
   : ActionPlanningStep<ActionT>{goal_handle, std::move(name), std::move(log)}
 {
+}
+
+template <typename ActionT>
+std::vector<Eigen::Isometry3d>
+ManipulationPlanningStep<ActionT>::approachWaypoints(const Eigen::Isometry3d& offset) const
+{
+  return convertLinearMotion(ActionPlanningStep<ActionT>::m_goal->approach, offset);
+}
+
+template <typename ActionT>
+std::vector<Eigen::Isometry3d>
+ManipulationPlanningStep<ActionT>::retractWaypoints(const Eigen::Isometry3d& offset) const
+{
+  return convertLinearMotion(ActionPlanningStep<ActionT>::m_goal->retract, offset);
 }
 
 } // namespace manipulation_pipeline

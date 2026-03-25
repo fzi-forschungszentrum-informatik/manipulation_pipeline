@@ -101,8 +101,8 @@ Grasp::plan(const RobotModel& robot_model,
   const auto target_pose = collision_object_to_reference_transform * target_pose_local;
 
   // Get waypoints for approach and retraction
-  auto approach_waypoints      = convertLinearMotion(m_goal->approach, target_pose);
-  const auto retract_waypoints = convertLinearMotion(m_goal->retract, target_pose);
+  auto approach_waypoints      = approachWaypoints(target_pose);
+  const auto retract_waypoints = retractWaypoints(target_pose);
 
   // Resolve cartesian limits
   const auto approach_limits = applyCartesianLimits(m_goal->approach.limits, limits);
