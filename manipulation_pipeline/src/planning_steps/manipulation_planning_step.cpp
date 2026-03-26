@@ -35,10 +35,120 @@
 //----------------------------------------------------------------------
 #include "manipulation_pipeline/planning_steps/manipulation_planning_step.h"
 
+#include "manipulation_pipeline/ik_sampler.h"
+#include "manipulation_pipeline/planner.h"
+
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace manipulation_pipeline {
+
+ManipulationPlan ManipulationPlanningStepBase::planManipulation(
+  const Eigen::Isometry3d& target_pose,
+  const moveit::core::LinkModel* tip_link,
+  const moveit::core::LinkModel* reference_link,
+  const moveit::core::JointModelGroup* joint_group,
+  const manipulation_pipeline_interfaces::msg::CartesianLimits& limits,
+  const std::shared_ptr<planning_scene::PlanningScene>& planning_scene,
+  Planner& planner,
+  MarkerInterface& visualizer,
+  const rclcpp::Logger& log) const
+{
+  const auto reference_frame_transform =
+    planning_scene->getFrameTransform(reference_link->getName());
+
+  // Sample IK solutions
+  IkSampler sampler{planning_scene->getCurrentState(),
+                    joint_group,
+                    reference_frame_transform * target_pose,
+                    50,
+                    log};
+  const auto ik_samples = sampler.sampleAll();
+
+  // Get approach and retract waypoints and limits
+  auto approach_waypoints = approachWaypoints(target_pose);
+  std::reverse(approach_waypoints.begin(), approach_waypoints.end()); // We plan in reverse
+  const auto retract_waypoints = retractWaypoints(target_pose);
+
+  const auto approach_limits = approachLimits(limits);
+  const auto retract_limits  = retractLimits(limits);
+
+  // Prepare planning scene
+  const auto cartesian_planning_scene = planning_scene::PlanningScene::clone(planning_scene);
+  disableCollisions(*cartesian_planning_scene);
+
+  // Calculate trajectories for approach and retract
+  std::vector<robot_trajectory::RobotTrajectoryPtr> approach_trajectories;
+  std::vector<robot_trajectory::RobotTrajectoryPtr> retract_trajectories;
+  for (std::size_t i = 0; i < ik_samples.size(); ++i)
+  {
+    const auto& state = ik_samples[i];
+
+    RCLCPP_INFO(log, "Planning approach for sample %zu/%zu", i + 1, ik_samples.size());
+    auto approach_trajectory = planner.planCartesianSequence(state,
+                                                             reference_link->getName(),
+                                                             approach_waypoints,
+                                                             tip_link,
+                                                             cartesian_planning_scene,
+                                                             &approach_limits);
+    if (!approach_trajectory || approach_trajectory->empty())
+    {
+      continue;
+    }
+    approach_trajectory->reverse();
+
+    RCLCPP_INFO(log, "Planning retract for sample %zu/%zu", i + 1, ik_samples.size());
+    auto retract_trajectory = planner.planCartesianSequence(state,
+                                                            reference_link->getName(),
+                                                            retract_waypoints,
+                                                            tip_link,
+                                                            cartesian_planning_scene,
+                                                            &retract_limits);
+    if (!retract_trajectory)
+    {
+      continue;
+    }
+
+    approach_trajectories.push_back(std::move(approach_trajectory));
+    retract_trajectories.push_back(std::move(retract_trajectory));
+  }
+  RCLCPP_INFO(log,
+              "Calculated %zu possible cartesian paths for %zu samples",
+              approach_trajectories.size(),
+              ik_samples.size());
+
+  // Plan PTP trajectory
+  std::vector<moveit::core::RobotState> ptp_goal_states;
+  ptp_goal_states.reserve(approach_trajectories.size());
+  std::transform(approach_trajectories.begin(),
+                 approach_trajectories.end(),
+                 std::back_inserter(ptp_goal_states),
+                 [&](const auto& t) { return t->getFirstWayPoint(); });
+
+  RCLCPP_INFO(log, "Planning PTP trajectory");
+  auto ptp_trajectory =
+    planner.plan(planning_scene->getCurrentState(), ptp_goal_states, planning_scene);
+  if (!ptp_trajectory)
+  {
+    throw std::runtime_error{"Unable to plan ptp trajectory"};
+  }
+
+  // Figure out corresponding approach and retract index
+  std::vector<double> distances;
+  distances.reserve(approach_trajectories.size());
+  for (std::size_t i = 0; i < approach_trajectories.size(); ++i)
+  {
+    distances.push_back(
+      ptp_trajectory->getLastWayPoint().distance(approach_trajectories[i]->getFirstWayPoint()));
+  }
+  const auto closest_i = std::min_element(distances.begin(), distances.end()) - distances.begin();
+  RCLCPP_INFO(log, "PTP trajectory corresponds to approach/retract %zu", closest_i);
+
+  // Create result
+  return ManipulationPlan{std::move(ptp_trajectory),
+                          std::move(approach_trajectories[closest_i]),
+                          std::move(retract_trajectories[closest_i])};
+}
 
 std::vector<Eigen::Isometry3d> ManipulationPlanningStepBase::convertLinearMotion(
   const manipulation_pipeline_interfaces::msg::LinearMotion& msg,

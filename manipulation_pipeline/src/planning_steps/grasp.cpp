@@ -155,6 +155,16 @@ Grasp::plan(const RobotModel& robot_model,
                     m_log};
   const auto ik_samples = sampler.sampleAll();
 
+  planManipulation(target_pose,
+                   tip_link,
+                   planning_interface.referenceLink(),
+                   planning_interface.group(),
+                   limits,
+                   context.planning_scene,
+                   planner,
+                   *context.plan_visualizer,
+                   m_log);
+
   const auto initial_state          = context.planning_scene->getCurrentState();
   moveit::core::RobotState ik_state = initial_state;
   if (!ik_state.setFromIK(
