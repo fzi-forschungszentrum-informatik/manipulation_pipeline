@@ -97,6 +97,14 @@ protected:
   std::vector<Eigen::Isometry3d>
   convertLinearMotion(const manipulation_pipeline_interfaces::msg::LinearMotion& msg,
                       const Eigen::Isometry3d& offset) const;
+
+private:
+  void visualizePlan(const Eigen::Isometry3d& inital_pose,
+                     const std::vector<Eigen::Isometry3d>& approach_waypoints,
+                     const Eigen::Isometry3d& target_pose,
+                     const std::vector<Eigen::Isometry3d>& retract_waypoints,
+                     const std::string& reference_frame,
+                     MarkerInterface& visualizer) const;
 };
 
 template <typename ActionT>

@@ -130,16 +130,6 @@ Place::plan(const RobotModel& robot_model,
   const auto approach_limits = applyCartesianLimits(m_goal->approach.limits, limits);
   const auto retract_limits  = applyCartesianLimits(m_goal->retract.limits, limits);
 
-  // Visualize path
-  const auto current_pose = reference_frame_transform.inverse() *
-                            context.planning_scene->getFrameTransform(tip_link->getName());
-  std::vector path_poses{current_pose};
-  std::copy(approach_waypoints.begin(), approach_waypoints.end(), std::back_inserter(path_poses));
-  path_poses.push_back(target_pose);
-  std::copy(retract_waypoints.begin(), retract_waypoints.end(), std::back_inserter(path_poses));
-  context.plan_visualizer->addPath(path_poses, reference_frame);
-  context.plan_visualizer->publish();
-
   // Target pose for setFromIk needs to be in model frame
   geometry_msgs::msg::Pose target_pose_msg;
   tf2::convert(reference_frame_transform * target_pose, target_pose_msg);

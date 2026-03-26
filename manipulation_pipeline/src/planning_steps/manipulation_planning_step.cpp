@@ -66,16 +66,27 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
   const auto ik_samples = sampler.sampleAll();
 
   // Get approach and retract waypoints and limits
-  auto approach_waypoints = approachWaypoints(target_pose);
-  std::reverse(approach_waypoints.begin(), approach_waypoints.end()); // We plan in reverse
+  auto approach_waypoints      = approachWaypoints(target_pose);
   const auto retract_waypoints = retractWaypoints(target_pose);
 
   const auto approach_limits = approachLimits(limits);
   const auto retract_limits  = retractLimits(limits);
 
+  // Visualize plan
+  visualizePlan(reference_frame_transform.inverse() *
+                  planning_scene->getFrameTransform(tip_link->getName()),
+                approach_waypoints,
+                target_pose,
+                retract_waypoints,
+                reference_link->getName(),
+                visualizer);
+
   // Prepare planning scene
   const auto cartesian_planning_scene = planning_scene::PlanningScene::clone(planning_scene);
   disableCollisions(*cartesian_planning_scene);
+
+  // Invert approach as we plan starting from ik sample
+  std::reverse(approach_waypoints.begin(), approach_waypoints.end()); // We plan in reverse
 
   // Calculate trajectories for approach and retract
   std::vector<robot_trajectory::RobotTrajectoryPtr> approach_trajectories;
@@ -182,6 +193,23 @@ std::vector<Eigen::Isometry3d> ManipulationPlanningStepBase::convertLinearMotion
   }
 
   return waypoints;
+}
+
+void ManipulationPlanningStepBase::visualizePlan(
+  const Eigen::Isometry3d& inital_pose,
+  const std::vector<Eigen::Isometry3d>& approach_waypoints,
+  const Eigen::Isometry3d& target_pose,
+  const std::vector<Eigen::Isometry3d>& retract_waypoints,
+  const std::string& reference_frame,
+  MarkerInterface& visualizer) const
+{
+  std::vector poses{inital_pose};
+  std::copy(approach_waypoints.begin(), approach_waypoints.end(), std::back_inserter(poses));
+  poses.push_back(target_pose);
+  std::copy(retract_waypoints.begin(), retract_waypoints.end(), std::back_inserter(poses));
+
+  visualizer.addPath(poses, reference_frame);
+  visualizer.publish();
 }
 
 } // namespace manipulation_pipeline
