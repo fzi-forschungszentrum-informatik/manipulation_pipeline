@@ -42,6 +42,7 @@
 #include <Eigen/Geometry>
 #include <manipulation_pipeline_interfaces/msg/cartesian_limits.hpp>
 #include <manipulation_pipeline_interfaces/msg/linear_motion.hpp>
+#include <moveit_msgs/msg/attached_collision_object.hpp>
 
 namespace planning_scene {
 class PlanningScene;
@@ -77,6 +78,7 @@ protected:
                    const moveit::core::LinkModel* reference_link,
                    const moveit::core::JointModelGroup* joint_group,
                    const manipulation_pipeline_interfaces::msg::CartesianLimits& limits,
+                   const moveit_msgs::msg::AttachedCollisionObject& collision_object,
                    const std::shared_ptr<planning_scene::PlanningScene>& planning_scene,
                    Planner& planner,
                    MarkerInterface& visualizer,

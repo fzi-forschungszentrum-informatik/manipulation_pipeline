@@ -49,6 +49,7 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
   const moveit::core::LinkModel* reference_link,
   const moveit::core::JointModelGroup* joint_group,
   const manipulation_pipeline_interfaces::msg::CartesianLimits& limits,
+  const moveit_msgs::msg::AttachedCollisionObject& collision_object,
   const std::shared_ptr<planning_scene::PlanningScene>& planning_scene,
   Planner& planner,
   MarkerInterface& visualizer,
@@ -81,9 +82,13 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
                 reference_link->getName(),
                 visualizer);
 
-  // Prepare planning scene
+  // Prepare planning scenes
   const auto cartesian_planning_scene = planning_scene::PlanningScene::clone(planning_scene);
   disableCollisions(*cartesian_planning_scene);
+
+  const auto attached_planning_scene =
+    planning_scene::PlanningScene::clone(cartesian_planning_scene);
+  attached_planning_scene->processAttachedCollisionObjectMsg(collision_object);
 
   // Invert approach as we plan starting from ik sample
   std::reverse(approach_waypoints.begin(), approach_waypoints.end()); // We plan in reverse
@@ -113,7 +118,7 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
                                                             reference_link->getName(),
                                                             retract_waypoints,
                                                             tip_link,
-                                                            cartesian_planning_scene,
+                                                            attached_planning_scene,
                                                             &retract_limits);
     if (!retract_trajectory)
     {
