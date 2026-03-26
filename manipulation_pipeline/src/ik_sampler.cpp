@@ -40,6 +40,7 @@
 namespace manipulation_pipeline {
 
 IkSampler::IkSampler(moveit::core::RobotState reference_state,
+                     const moveit::core::LinkModel* tip_link,
                      const moveit::core::JointModelGroup* joint_group,
                      Eigen::Isometry3d target_pose,
                      std::size_t max_samples,
@@ -48,6 +49,7 @@ IkSampler::IkSampler(moveit::core::RobotState reference_state,
   , m_engine{joint_group->getActiveVariableCount()}
   , m_reference_state{std::move(reference_state)}
   , m_sample_state{m_reference_state}
+  , m_tip_link{tip_link}
   , m_joint_group{joint_group}
   , m_target_pose{std::move(target_pose)}
   , m_max_samples{max_samples}
@@ -72,7 +74,7 @@ std::optional<moveit::core::RobotState> IkSampler::sample()
     m_sample_state.setJointPositions(joint_models[i], &p_i);
   }
 
-  if (m_sample_state.setFromIK(m_joint_group, m_target_pose))
+  if (m_sample_state.setFromIK(m_joint_group, m_target_pose, m_tip_link->getName()))
   {
     if (isNew(m_sample_state, 0.1))
     {

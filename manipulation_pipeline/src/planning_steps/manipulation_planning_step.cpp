@@ -55,11 +55,27 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
   MarkerInterface& visualizer,
   const rclcpp::Logger& log) const
 {
+  geometry_msgs::msg::Pose target_pose_msg;
+  tf2::convert(target_pose, target_pose_msg);
+  RCLCPP_INFO(log,
+              "Planning manipulation with target pose [%.05f, %.05f, %.05f](%.02f, %.02f, %.02f, "
+              "%.02f) (frame=%s) and tip link %s",
+              target_pose_msg.position.x,
+              target_pose_msg.position.y,
+              target_pose_msg.position.z,
+              target_pose_msg.orientation.x,
+              target_pose_msg.orientation.y,
+              target_pose_msg.orientation.z,
+              target_pose_msg.orientation.w,
+              reference_link->getName().c_str(),
+              tip_link->getName().c_str());
+
   const auto reference_frame_transform =
     planning_scene->getFrameTransform(reference_link->getName());
 
   // Sample IK solutions
   IkSampler sampler{planning_scene->getCurrentState(),
+                    tip_link,
                     joint_group,
                     reference_frame_transform * target_pose,
                     50,
@@ -158,12 +174,16 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
       ptp_trajectory->getLastWayPoint().distance(approach_trajectories[i]->getFirstWayPoint()));
   }
   const auto closest_i = std::min_element(distances.begin(), distances.end()) - distances.begin();
+  auto& approach_trajectory = approach_trajectories[closest_i];
+  auto& retract_trajectory  = retract_trajectories[closest_i];
   RCLCPP_INFO(log, "PTP trajectory corresponds to approach/retract %zu", closest_i);
 
   // Create result
-  return ManipulationPlan{std::move(ptp_trajectory),
-                          std::move(approach_trajectories[closest_i]),
-                          std::move(retract_trajectories[closest_i])};
+  ptp_trajectory->setWayPointDurationFromPrevious(0, 0.5);
+  approach_trajectory->setWayPointDurationFromPrevious(0, 0.1);
+  retract_trajectory->setWayPointDurationFromPrevious(0, 0.1);
+  return ManipulationPlan{
+    std::move(ptp_trajectory), std::move(approach_trajectory), std::move(retract_trajectory)};
 }
 
 std::vector<Eigen::Isometry3d> ManipulationPlanningStepBase::convertLinearMotion(

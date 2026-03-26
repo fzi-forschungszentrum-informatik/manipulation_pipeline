@@ -61,6 +61,7 @@ public:
    * \param log Logger to use for debug messages
    */
   IkSampler(moveit::core::RobotState reference_state,
+            const moveit::core::LinkModel* tip_link,
             const moveit::core::JointModelGroup* joint_group,
             Eigen::Isometry3d target_pose,
             std::size_t max_samples,
@@ -94,6 +95,7 @@ private:
 
   moveit::core::RobotState m_reference_state;
   moveit::core::RobotState m_sample_state;
+  const moveit::core::LinkModel* m_tip_link;
   const moveit::core::JointModelGroup* m_joint_group;
 
   Eigen::Isometry3d m_target_pose;
