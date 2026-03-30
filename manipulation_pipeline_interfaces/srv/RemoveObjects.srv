@@ -1,0 +1,7 @@
+# Regex filter for object name
+# Only objects with matching object id will get removed.
+# If left empty, all objects are removed.
+string filter
+---
+bool success
+string message

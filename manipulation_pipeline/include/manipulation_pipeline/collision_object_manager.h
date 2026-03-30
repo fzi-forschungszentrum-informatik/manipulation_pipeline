@@ -39,6 +39,7 @@
 
 #include <manipulation_pipeline_interfaces/srv/combine_objects.hpp>
 #include <manipulation_pipeline_interfaces/srv/remove_object.hpp>
+#include <manipulation_pipeline_interfaces/srv/remove_objects.hpp>
 #include <manipulation_pipeline_interfaces/srv/spawn_object.hpp>
 #include <manipulation_pipeline_interfaces/srv/split_object.hpp>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.hpp>
@@ -69,6 +70,10 @@ private:
   void removeObjectCb(std::shared_ptr<RemoveObjectSrv::Request> request,
                       std::shared_ptr<RemoveObjectSrv::Response> response);
 
+  using RemoveObjectsSrv = manipulation_pipeline_interfaces::srv::RemoveObjects;
+  void removeObjectsCb(std::shared_ptr<RemoveObjectsSrv::Request> request,
+                       std::shared_ptr<RemoveObjectsSrv::Response> response);
+
   using SplitObjectSrv = manipulation_pipeline_interfaces::srv::SplitObject;
   void splitObjectCb(std::shared_ptr<SplitObjectSrv::Request> request,
                      std::shared_ptr<SplitObjectSrv::Response> response);
@@ -85,6 +90,7 @@ private:
 
   rclcpp::Service<SpawnObjectSrv>::SharedPtr m_spawn_object_service;
   rclcpp::Service<RemoveObjectSrv>::SharedPtr m_remove_object_service;
+  rclcpp::Service<RemoveObjectsSrv>::SharedPtr m_remove_objects_service;
   rclcpp::Service<SplitObjectSrv>::SharedPtr m_split_object_service;
   rclcpp::Service<CombineObjectsSrv>::SharedPtr m_combine_object_service;
 };

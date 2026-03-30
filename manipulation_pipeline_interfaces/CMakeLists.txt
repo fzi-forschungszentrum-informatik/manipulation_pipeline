@@ -19,6 +19,7 @@ rosidl_generate_interfaces(
     action/Place.action
     srv/CombineObjects.srv
     srv/RemoveObject.srv
+    srv/RemoveObjects.srv
     srv/SpawnObject.srv
     srv/SplitObject.srv
     msg/CartesianLimits.msg
