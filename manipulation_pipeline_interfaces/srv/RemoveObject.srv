@@ -1,0 +1,6 @@
+# Name of the object
+# This is matched against the collision object id.
+string name
+---
+bool success
+string message
