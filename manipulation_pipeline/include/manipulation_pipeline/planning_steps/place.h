@@ -37,7 +37,7 @@
 #ifndef MANIPULATION_PIPELINE_PLACE_H_INCLUDED
 #define MANIPULATION_PIPELINE_PLACE_H_INCLUDED
 
-#include "manipulation_pipeline/planning_step.h"
+#include "manipulation_pipeline/planning_steps/manipulation_planning_step.h"
 
 #include <manipulation_pipeline_interfaces/action/place.hpp>
 
@@ -48,7 +48,7 @@ class GroupInterface;
 
 /*! \brief Place a previously grasped object at a specific cartesian pose
  */
-class Place : public ActionPlanningStep<manipulation_pipeline_interfaces::action::Place>
+class Place : public ManipulationPlanningStep<manipulation_pipeline_interfaces::action::Place>
 {
 public:
   using Action = manipulation_pipeline_interfaces::action::Place;

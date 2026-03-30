@@ -38,6 +38,7 @@
 #include "manipulation_pipeline/action.h"
 #include "manipulation_pipeline/actions/change_attached_object.h"
 #include "manipulation_pipeline/actions/execute_trajectory.h"
+#include "manipulation_pipeline/ik_sampler.h"
 #include "manipulation_pipeline/planner.h"
 #include "manipulation_pipeline/planning_context.h"
 
@@ -50,11 +51,11 @@
 namespace manipulation_pipeline {
 
 Grasp::Grasp(const std::shared_ptr<Handle>& handle, rclcpp::Logger log)
-  : ActionPlanningStep<Action>{handle,
-                               fmt::format("Grasp({}[{}])",
-                                           handle->handle().get_goal()->object_name,
-                                           handle->handle().get_goal()->subframe),
-                               std::move(log)}
+  : ManipulationPlanningStep<Action>{handle,
+                                     fmt::format("Grasp({}[{}])",
+                                                 handle->handle().get_goal()->object_name,
+                                                 handle->handle().get_goal()->subframe),
+                                     std::move(log)}
 {
 }
 
@@ -99,35 +100,6 @@ Grasp::plan(const RobotModel& robot_model,
     reference_frame_transform.inverse() * collision_object_frame_transform;
   const auto target_pose = collision_object_to_reference_transform * target_pose_local;
 
-  // Get waypoints for approach and retraction
-  auto approach_waypoints      = convertLinearMotion(m_goal->approach, target_pose);
-  const auto retract_waypoints = convertLinearMotion(m_goal->retract, target_pose);
-
-  // Resolve cartesian limits
-  const auto approach_limits = applyCartesianLimits(m_goal->approach.limits, limits);
-  const auto retract_limits  = applyCartesianLimits(m_goal->retract.limits, limits);
-
-  // Visualize path
-  const auto current_pose = reference_frame_transform.inverse() *
-                            context.planning_scene->getFrameTransform(tip_link->getName());
-  std::vector path_poses{current_pose};
-  std::copy(approach_waypoints.begin(), approach_waypoints.end(), std::back_inserter(path_poses));
-  path_poses.push_back(target_pose);
-  std::copy(retract_waypoints.begin(), retract_waypoints.end(), std::back_inserter(path_poses));
-  context.plan_visualizer->addPath(path_poses, reference_frame);
-  context.plan_visualizer->publish();
-
-  // Do planning inside IK loop
-  // Goal: Find an IK solution that allows the whole grasp step to succeed
-  robot_trajectory::RobotTrajectoryPtr result_ptp_approach_trajectory;
-  robot_trajectory::RobotTrajectoryPtr result_approach_trajectory;
-  robot_trajectory::RobotTrajectoryPtr result_retract_trajectory;
-  std::shared_ptr<manipulation_pipeline::Action> tool_action;
-
-  // Target pose for setFromIk needs to be in model frame
-  geometry_msgs::msg::Pose target_pose_msg;
-  tf2::convert(reference_frame_transform * target_pose, target_pose_msg);
-
   // Allow collisions between collision object and end effector
   const auto& ee_links = ee_interface.group()->getLinkModels();
   std::vector<std::string> ee_link_names;
@@ -143,119 +115,44 @@ Grasp::plan(const RobotModel& robot_model,
   attached_collision_object.link_name        = tip_link->getName();
   attached_collision_object.touch_links      = ee_link_names;
 
-  // We plan in reverse, starting from ik at target pose
-  std::reverse(approach_waypoints.begin(), approach_waypoints.end());
+  // Plan
+  const auto manipulation_plan = planManipulation(target_pose,
+                                                  tip_link,
+                                                  planning_interface.referenceLink(),
+                                                  planning_interface.group(),
+                                                  limits,
+                                                  attached_collision_object,
+                                                  context.planning_scene,
+                                                  planner,
+                                                  *context.plan_visualizer,
 
-  const auto initial_state          = context.planning_scene->getCurrentState();
-  moveit::core::RobotState ik_state = initial_state;
-  if (!ik_state.setFromIK(
-        planning_interface.group(),
-        target_pose_msg,
-        tip_link->getName(),
-        0.0,
-        [&](moveit::core::RobotState* state,
-            const moveit::core::JointModelGroup* group,
-            const double* joint_values) -> bool {
-          state->setJointGroupPositions(group, joint_values);
-          state->update();
+                                                  m_log);
 
-          const auto cartesian_planning_scene =
-            planning_scene::PlanningScene::clone(context.planning_scene);
-          auto& cartesian_planning_scene_acm =
-            cartesian_planning_scene->getAllowedCollisionMatrixNonConst();
-          for (const auto& disabled_collision : m_goal->disabled_collisions)
-          {
-            cartesian_planning_scene_acm.setEntry(
-              disabled_collision.link1, disabled_collision.link2, true);
-          }
-
-          RCLCPP_INFO(m_log, "Planning cartesian approach trajectory");
-          auto cartesian_approach_trajectory =
-            planner.planCartesianSequence(*state,
-                                          reference_frame,
-                                          approach_waypoints,
-                                          tip_link,
-                                          cartesian_planning_scene,
-                                          &approach_limits);
-          if (!cartesian_approach_trajectory || cartesian_approach_trajectory->empty())
-          {
-            return false;
-          }
-          cartesian_approach_trajectory->reverse();
-
-          // Clone planning scene in order to properly handle attached object
-          RCLCPP_INFO(m_log, "Creating tool action and cloned planning scene");
-          const auto attached_planning_scene =
-            planning_scene::PlanningScene::clone(context.planning_scene);
-
-          tool_action = createToolAction(ee_interface,
-                                         attached_planning_scene->getRobotModel(),
-                                         planner,
-                                         *state,
-                                         m_goal->grasp_action);
-          attached_planning_scene->processAttachedCollisionObjectMsg(attached_collision_object);
-
-          RCLCPP_INFO(m_log, "Planning cartesian retract trajectory");
-          // TODO: Why does this not work with attached_planning_scene instead of
-          // context.planning_scene?
-          auto cartesian_retract_trajectory =
-            planner.planCartesianSequence(*state,
-                                          reference_frame,
-                                          retract_waypoints,
-                                          tip_link,
-                                          cartesian_planning_scene,
-                                          &retract_limits);
-          // planner.planCartesian(*state, retract_pose, tip_link, attached_planning_scene);
-          if (!cartesian_retract_trajectory)
-          {
-            return false;
-          }
-
-          // Plan ptp motion with original scene (without attached object)
-          RCLCPP_INFO(m_log, "Planning PTP approach");
-          const auto ptp_approach_trajectory =
-            planner.plan(initial_state,
-                         cartesian_approach_trajectory->getFirstWayPoint(),
-                         context.planning_scene);
-          if (!ptp_approach_trajectory)
-          {
-            return false;
-          }
-
-          result_ptp_approach_trajectory = ptp_approach_trajectory;
-          result_approach_trajectory     = cartesian_approach_trajectory;
-          result_retract_trajectory      = cartesian_retract_trajectory;
-
-          result_ptp_approach_trajectory->setWayPointDurationFromPrevious(0, 0.5);
-          result_approach_trajectory->setWayPointDurationFromPrevious(0, 0.1);
-          result_retract_trajectory->setWayPointDurationFromPrevious(0, 0.1);
-
-          return true;
-        }))
-  {
-    throw std::runtime_error{"Could not find trajectory"};
-  }
-
-  // Keep track of current state
-  context.planning_scene->setCurrentState(result_retract_trajectory->getLastWayPoint());
+  // Bookkeeping in planning scene
+  context.planning_scene->setCurrentState(manipulation_plan.retract->getLastWayPoint());
   context.planning_scene->processAttachedCollisionObjectMsg(attached_collision_object);
 
-  // Create action sequence
+  // Create result
   auto result = std::make_shared<ActionSequence>(name(), goalHandle());
   result->add(std::make_shared<actions::ExecuteTrajectory>(
-    result_ptp_approach_trajectory, m_goal->controller, std::vector{tip_link}, "ptp_approach"));
+    manipulation_plan.ptp, m_goal->controller, std::vector{tip_link}, "ptp_approach"));
   result->add(std::make_shared<actions::ExecuteTrajectory>(
-    result_approach_trajectory, m_goal->controller, std::vector{tip_link}, "approach"));
-  if (tool_action)
+    manipulation_plan.approach, m_goal->controller, std::vector{tip_link}, "approach"));
+  if (const auto tool_action = createToolAction(ee_interface,
+                                                context.planning_scene->getRobotModel(),
+                                                planner,
+                                                *manipulation_plan.approach->getLastWayPointPtr(),
+                                                m_goal->grasp_action);
+      tool_action)
   {
     result->add(tool_action);
   }
   result->add(std::make_shared<actions::ChangeAttachedObject>(attached_collision_object, "attach"));
   result->add(std::make_shared<actions::ExecuteTrajectory>(
-    result_retract_trajectory, m_goal->controller, std::vector{tip_link}, "retract"));
+    manipulation_plan.retract, m_goal->controller, std::vector{tip_link}, "retract"));
 
   return result;
-} // namespace manipulation_pipeline
+}
 
 moveit_msgs::msg::CollisionObject
 Grasp::getCollisionObject(const planning_scene::PlanningScene& planning_scene) const

@@ -23,6 +23,10 @@ foreach(DEP ${ROS_DEPENDENCIES})
   find_package(${DEP} REQUIRED)
 endforeach()
 
+find_package(Boost REQUIRED
+  COMPONENTS
+    random
+)
 find_package(fmt REQUIRED)
 
 #
@@ -38,6 +42,7 @@ target_sources(manipulation_pipeline
     src/collision_object_manager.cpp
     src/execution_pipeline.cpp
     src/goal_handle.cpp
+    src/ik_sampler.cpp
     src/manipulation_pipeline.cpp
     src/planner.cpp
     src/planning_context.cpp
@@ -47,6 +52,7 @@ target_sources(manipulation_pipeline
     src/planning_steps/actuate_tool.cpp
     src/planning_steps/execute_path.cpp
     src/planning_steps/grasp.cpp
+    src/planning_steps/manipulation_planning_step.cpp
     src/planning_steps/move_to_named_pose.cpp
     src/planning_steps/move_to_pose.cpp
     src/planning_steps/move_to_configuration.cpp
@@ -70,6 +76,7 @@ ament_target_dependencies(manipulation_pipeline
   ${ROS_DEPENDENCIES}
 )
 target_link_libraries(manipulation_pipeline
+  Boost::random
   fmt::fmt
 )
 

@@ -37,7 +37,7 @@
 #ifndef MANIPULATION_PIPELINE_GRASP_H_INCLUDED
 #define MANIPULATION_PIPELINE_GRASP_H_INCLUDED
 
-#include "manipulation_pipeline/planning_step.h"
+#include "manipulation_pipeline/planning_steps/manipulation_planning_step.h"
 
 #include <Eigen/Geometry>
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -52,7 +52,7 @@ namespace manipulation_pipeline {
 
 /*! \brief Move to and grasp a collision object
  */
-class Grasp : public ActionPlanningStep<manipulation_pipeline_interfaces::action::Grasp>
+class Grasp : public ManipulationPlanningStep<manipulation_pipeline_interfaces::action::Grasp>
 {
 public:
   using Action = manipulation_pipeline_interfaces::action::Grasp;

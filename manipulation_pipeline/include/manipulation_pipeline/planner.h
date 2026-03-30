@@ -78,6 +78,9 @@ public:
   robot_trajectory::RobotTrajectoryPtr plan(const moveit::core::RobotState& initial_state,
                                             const moveit::core::RobotState& target_state,
                                             const planning_scene::PlanningScenePtr& planning_scene);
+  robot_trajectory::RobotTrajectoryPtr plan(const moveit::core::RobotState& initial_state,
+                                            std::vector<moveit::core::RobotState>& target_states,
+                                            const planning_scene::PlanningScenePtr& planning_scene);
 
   robot_trajectory::RobotTrajectoryPtr plan(const moveit::core::RobotState& initial_state,
                                             const geometry_msgs::msg::PoseStamped& target_pose,
