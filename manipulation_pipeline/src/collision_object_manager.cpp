@@ -43,6 +43,7 @@
 #include <moveit_msgs/msg/attached_collision_object.hpp>
 #include <moveit_msgs/msg/collision_object.hpp>
 #include <moveit_msgs/msg/object_color.hpp>
+#include <regex>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
@@ -57,6 +58,18 @@ CollisionObjectManager::CollisionObjectManager(
   , m_spawn_object_service{node->create_service<SpawnObjectSrv>(
       "~/spawn_object",
       std::bind(&CollisionObjectManager::spawnObjectCb,
+                this,
+                std::placeholders::_1,
+                std::placeholders::_2))}
+  , m_remove_object_service{node->create_service<RemoveObjectSrv>(
+      "~/remove_object",
+      std::bind(&CollisionObjectManager::removeObjectCb,
+                this,
+                std::placeholders::_1,
+                std::placeholders::_2))}
+  , m_remove_objects_service{node->create_service<RemoveObjectsSrv>(
+      "~/remove_objects",
+      std::bind(&CollisionObjectManager::removeObjectsCb,
                 this,
                 std::placeholders::_1,
                 std::placeholders::_2))}
@@ -168,6 +181,140 @@ void CollisionObjectManager::spawnObjectCb(std::shared_ptr<SpawnObjectSrv::Reque
   {
     response->success = false;
     response->message = fmt::format("Could not spawn object '{}': {}", request->name, ex.what());
+    RCLCPP_ERROR(m_log, "%s", response->message.c_str());
+  }
+}
+
+void CollisionObjectManager::removeObjectCb(std::shared_ptr<RemoveObjectSrv::Request> request,
+                                            std::shared_ptr<RemoveObjectSrv::Response> response)
+{
+  try
+  {
+    {
+      planning_scene_monitor::LockedPlanningSceneRW planning_scene{m_planning_scene_monitor};
+
+      moveit_msgs::msg::AttachedCollisionObject current_object;
+      if (!planning_scene->getAttachedCollisionObjectMsg(current_object, request->name))
+      {
+        if (!planning_scene->getCollisionObjectMsg(current_object.object, request->name))
+        {
+          throw std::runtime_error{
+            fmt::format("There is no collision object with name '{}'", request->name)};
+        }
+      }
+
+      const auto attach_str = current_object.link_name.empty()
+                                ? "not attached"
+                                : fmt::format("attached to {}", current_object.link_name);
+      RCLCPP_INFO(
+        m_log, "Object %s is currently %s", current_object.object.id.c_str(), attach_str.c_str());
+
+      current_object.object.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+
+      // If object is currently attached, we first need to detach it
+      if (!current_object.link_name.empty())
+      {
+        RCLCPP_INFO(m_log, "Detaching object %s", current_object.object.id.c_str());
+        if (!planning_scene->processAttachedCollisionObjectMsg(current_object))
+        {
+          throw std::runtime_error{fmt::format("Unable to detach object {} from link {}",
+                                               current_object.object.id,
+                                               current_object.link_name)};
+        }
+      }
+
+      // Remove current object
+      RCLCPP_INFO(
+        m_log, "Removing object %s from planning scene", current_object.object.id.c_str());
+      if (!planning_scene->processCollisionObjectMsg(current_object.object))
+      {
+        throw std::runtime_error{
+          fmt::format("Unable to remove object {} from planning scene", current_object.object.id)};
+      }
+    }
+
+    // Notify scene update
+    m_planning_scene_monitor->triggerSceneUpdateEvent(
+      planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType::UPDATE_GEOMETRY);
+
+    response->success = true;
+    response->message = fmt::format("Successfully removed object '{}'", request->name);
+    RCLCPP_INFO(m_log, "%s", response->message.c_str());
+  }
+  catch (const std::runtime_error& ex)
+  {
+    response->success = false;
+    response->message = fmt::format("Could not remove object '{}': {}", request->name, ex.what());
+    RCLCPP_ERROR(m_log, "%s", response->message.c_str());
+  }
+}
+
+void CollisionObjectManager::removeObjectsCb(std::shared_ptr<RemoveObjectsSrv::Request> request,
+                                             std::shared_ptr<RemoveObjectsSrv::Response> response)
+{
+  try
+  {
+    auto filter_pattern = request->filter.empty() ? std::string{".*"} : request->filter;
+    std::regex filter{filter_pattern};
+
+    {
+      planning_scene_monitor::LockedPlanningSceneRW planning_scene{m_planning_scene_monitor};
+
+      std::vector<moveit_msgs::msg::AttachedCollisionObject> attached_collision_objects;
+      planning_scene->getAttachedCollisionObjectMsgs(attached_collision_objects);
+
+      std::vector<moveit_msgs::msg::CollisionObject> collision_objects;
+      planning_scene->getCollisionObjectMsgs(collision_objects);
+
+      // Detach attached objects
+      for (auto& attached_obj : attached_collision_objects)
+      {
+        if (std::regex_match(attached_obj.object.id, filter))
+        {
+          attached_obj.object.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+
+          RCLCPP_INFO(m_log, "Detaching object '%s'", attached_obj.object.id.c_str());
+          if (!planning_scene->processAttachedCollisionObjectMsg(attached_obj))
+          {
+            throw std::runtime_error{
+              fmt::format("Unable to detach object '{}'", attached_obj.object.id)};
+          }
+
+          collision_objects.push_back(
+            attached_obj.object); // Remove these along with the rest later
+        }
+      }
+
+      // Remove objects
+      for (auto& obj : collision_objects)
+      {
+        if (std::regex_match(obj.id, filter))
+        {
+          obj.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+
+          RCLCPP_INFO(m_log, "Removing object '%s'", obj.id.c_str());
+          if (!planning_scene->processCollisionObjectMsg(obj))
+          {
+            throw std::runtime_error{fmt::format("Unable to remove object '{}'", obj.id)};
+          }
+        }
+      }
+    }
+
+    // Notify scene update
+    m_planning_scene_monitor->triggerSceneUpdateEvent(
+      planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType::UPDATE_GEOMETRY);
+
+    response->success = true;
+    response->message =
+      fmt::format("Successfully removed objects with filter '{}'", request->filter);
+    RCLCPP_INFO(m_log, "%s", response->message.c_str());
+  }
+  catch (const std::runtime_error& ex)
+  {
+    response->success = false;
+    response->message =
+      fmt::format("Could not remove objects with filter '%s': {}", request->filter, ex.what());
     RCLCPP_ERROR(m_log, "%s", response->message.c_str());
   }
 }
@@ -325,8 +472,8 @@ void CollisionObjectManager::combineObjectsCb(std::shared_ptr<CombineObjectsSrv:
       }
     }
 
-    // Create new object first -> If e.g. mesh lookup fails we don't want to delete the old objects
-    // yet
+    // Create new object first -> If e.g. mesh lookup fails we don't want to delete the old
+    // objects yet
     Eigen::Isometry3d old_pose;
     tf2::convert(collision_objects[0].object.pose, old_pose);
     Eigen::Isometry3d offset;
