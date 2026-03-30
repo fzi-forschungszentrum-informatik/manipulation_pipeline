@@ -73,15 +73,6 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
   const auto reference_frame_transform =
     planning_scene->getFrameTransform(reference_link->getName());
 
-  // Sample IK solutions
-  IkSampler sampler{planning_scene->getCurrentState(),
-                    tip_link,
-                    joint_group,
-                    reference_frame_transform * target_pose,
-                    50,
-                    log};
-  const auto ik_samples = sampler.sampleAll();
-
   // Get approach and retract waypoints and limits
   auto approach_waypoints      = approachWaypoints(target_pose);
   const auto retract_waypoints = retractWaypoints(target_pose);
@@ -108,6 +99,15 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
 
   // Invert approach as we plan starting from ik sample
   std::reverse(approach_waypoints.begin(), approach_waypoints.end()); // We plan in reverse
+
+  // Sample IK solutions
+  IkSampler sampler{planning_scene->getCurrentState(),
+                    tip_link,
+                    joint_group,
+                    reference_frame_transform * target_pose,
+                    50,
+                    log};
+  const auto ik_samples = sampler.sampleAll();
 
   // Calculate trajectories for approach and retract
   std::vector<robot_trajectory::RobotTrajectoryPtr> approach_trajectories;
