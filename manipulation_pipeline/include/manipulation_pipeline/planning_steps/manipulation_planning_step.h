@@ -42,7 +42,9 @@
 #include <Eigen/Geometry>
 #include <manipulation_pipeline_interfaces/msg/cartesian_limits.hpp>
 #include <manipulation_pipeline_interfaces/msg/linear_motion.hpp>
+#include <moveit/robot_state/robot_state.hpp>
 #include <moveit_msgs/msg/attached_collision_object.hpp>
+#include <vector>
 
 namespace planning_scene {
 class PlanningScene;
@@ -107,6 +109,11 @@ private:
                      const std::vector<Eigen::Isometry3d>& retract_waypoints,
                      const std::string& reference_frame,
                      MarkerInterface& visualizer) const;
+  std::vector<moveit::core::RobotState> sampleIk(const Eigen::Isometry3d& target_pose,
+                                                 const moveit::core::RobotState& reference_state,
+                                                 const moveit::core::LinkModel* tip_link,
+                                                 const moveit::core::JointModelGroup* group,
+                                                 const rclcpp::Logger& log) const;
 };
 
 template <typename ActionT>

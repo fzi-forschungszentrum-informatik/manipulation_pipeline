@@ -100,14 +100,11 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
   // Invert approach as we plan starting from ik sample
   std::reverse(approach_waypoints.begin(), approach_waypoints.end()); // We plan in reverse
 
-  // Sample IK solutions
-  IkSampler sampler{planning_scene->getCurrentState(),
-                    tip_link,
-                    joint_group,
-                    reference_frame_transform * target_pose,
-                    50,
-                    log};
-  const auto ik_samples = sampler.sampleAll();
+  const auto ik_samples = sampleIk(reference_frame_transform * target_pose,
+                                   planning_scene->getCurrentState(),
+                                   tip_link,
+                                   joint_group,
+                                   log);
 
   // Calculate trajectories for approach and retract
   std::vector<robot_trajectory::RobotTrajectoryPtr> approach_trajectories;
@@ -143,6 +140,10 @@ ManipulationPlan ManipulationPlanningStepBase::planManipulation(
 
     approach_trajectories.push_back(std::move(approach_trajectory));
     retract_trajectories.push_back(std::move(retract_trajectory));
+  }
+  if (approach_trajectories.empty())
+  {
+    throw std::runtime_error{"Found no feasible approach/retract trajectories for IK samples"};
   }
   RCLCPP_INFO(log,
               "Calculated %zu possible cartesian paths for %zu samples",
@@ -235,6 +236,25 @@ void ManipulationPlanningStepBase::visualizePlan(
 
   visualizer.addPath(poses, reference_frame);
   visualizer.publish();
+}
+
+std::vector<moveit::core::RobotState>
+ManipulationPlanningStepBase::sampleIk(const Eigen::Isometry3d& target_pose,
+                                       const moveit::core::RobotState& reference_state,
+                                       const moveit::core::LinkModel* tip_link,
+                                       const moveit::core::JointModelGroup* group,
+                                       const rclcpp::Logger& log) const
+{
+  // Sample IK solutions
+  IkSampler sampler{reference_state, tip_link, group, target_pose, 50, log};
+  const auto ik_samples = sampler.sampleAll();
+
+  if (ik_samples.empty())
+  {
+    throw std::runtime_error{"Unable to sample any valid IK solution for target pose"};
+  }
+
+  return ik_samples;
 }
 
 } // namespace manipulation_pipeline
