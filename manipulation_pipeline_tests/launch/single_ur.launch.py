@@ -30,6 +30,7 @@ from launch.substitutions import Command, FindExecutable, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
+from moveit_configs_utils import MoveItConfigsBuilder
 
 
 def generate_launch_description():
@@ -37,6 +38,7 @@ def generate_launch_description():
 
     launch_description = LaunchDescription()
 
+    # Start driver
     launch_description.add_action(
         Node(
             package="controller_manager",
@@ -73,6 +75,7 @@ def generate_launch_description():
         )
     )
 
+    # Spawn controllers
     launch_description.add_action(
         Node(
             package="controller_manager",
@@ -81,6 +84,28 @@ def generate_launch_description():
                 "joint_state_broadcaster",
                 "joint_trajectory_controller",
             ],
+        )
+    )
+
+    # Launch mapi
+    moveit_config = (
+        MoveItConfigsBuilder("single_ur", package_name="manipulation_pipeline_tests")
+        .planning_pipelines(pipelines=["ompl", "pilz_industrial_motion_planner"])
+        .planning_scene_monitor()
+        .trajectory_execution(file_path="config/single_ur/moveit_controllers.yaml")
+        .robot_description_kinematics(file_path="config/single_ur/kinematics.yaml")
+        .joint_limits(file_path="config/single_ur/joint_limits.yaml")
+        .pilz_cartesian_limits(file_path="config/single_ur/pilz_cartesian_limits.yaml")
+        .moveit_cpp(file_path="config/single_ur/moveit_cpp.yaml")
+    ).to_moveit_configs()
+
+    launch_description.add_action(
+        Node(
+            package="manipulation_pipeline",
+            executable="manipulation_pipeline",
+            name="manipulation_pipeline",
+            parameters=[moveit_config.to_dict()],
+            output="screen",
         )
     )
 
