@@ -20,8 +20,14 @@
   <exec_depend>ur_robot_driver</exec_depend>
   <exec_depend>xacro</exec_depend>
 
+  <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
+  <test_depend>launch_pytest</test_depend>
+  <test_depend>launch_ros</test_depend>
+  <test_depend>manipulation_pipeline_interfaces</test_depend>
+  <test_depend>rclpy</test_depend>
+  <test_depend>sensor_msgs</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
