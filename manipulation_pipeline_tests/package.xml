@@ -15,6 +15,9 @@
 
   <exec_depend>joint_trajectory_controller</exec_depend>
   <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>manipulation_pipeline</exec_depend>
+  <exec_depend>manipulation_pipeline_interfaces</exec_depend>
+  <exec_depend>moveit_configs_utils</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>ur_description</exec_depend>
   <exec_depend>ur_robot_driver</exec_depend>
