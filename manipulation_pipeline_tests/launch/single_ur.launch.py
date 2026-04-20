@@ -52,6 +52,7 @@ def generate_launch_description():
                 ),
             ],
             output="screen",
+            emulate_tty=True,
         )
     )
 
@@ -72,6 +73,7 @@ def generate_launch_description():
                 }
             ],
             output="screen",
+            emulate_tty=True,
         )
     )
 
@@ -84,6 +86,8 @@ def generate_launch_description():
                 "joint_state_broadcaster",
                 "joint_trajectory_controller",
             ],
+            output="screen",
+            emulate_tty=True,
         )
     )
 
@@ -106,6 +110,7 @@ def generate_launch_description():
             name="manipulation_pipeline",
             parameters=[moveit_config.to_dict()],
             output="screen",
+            emulate_tty=True,
         )
     )
 
