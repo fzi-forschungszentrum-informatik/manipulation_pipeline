@@ -26,25 +26,43 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 import logging
+import time
 
 import rclpy
 import rclpy.node
 from action_msgs.msg import GoalStatus
+from controller_manager_msgs.srv import ListControllers
 from manipulation_pipeline_interfaces.action import MoveToNamedPose, MoveToPose
 from rclpy.action import ActionClient
+from rclpy.duration import Duration
+
+
+def _wait_for_service(node, service_type, service_name, timeout_sec):
+    client = node.create_client(service_type, service_name)
+
+    logging.info(f"Waiting for service {service_name} (timeout={timeout_sec:.1f}s)...")
+    if not client.wait_for_service(timeout_sec=timeout_sec):
+        raise RuntimeError(
+            f"Service {service_name} not available after {timeout_sec:.1f} seconds"
+        )
+    logging.info(f"Service {service_name} ready")
+
+    return client
 
 
 def _wait_for_action(node, action_type, action_name, timeout_sec):
-    action_client = ActionClient(node, action_type, action_name)
+    client = ActionClient(node, action_type, action_name)
 
-    logging.info(f"Waiting for action server {action_name} ...")
-    if not action_client.wait_for_server(timeout_sec=timeout_sec):
+    logging.info(
+        f"Waiting for action server {action_name} (timeout={timeout_sec:.1f}s)..."
+    )
+    if not client.wait_for_server(timeout_sec=timeout_sec):
         raise RuntimeError(
-            f"Action server {action_name} not available after {timeout_sec} seconds"
+            f"Action server {action_name} not available after {timeout_sec:.1f} seconds"
         )
     logging.info(f"Action server {action_name} ready")
 
-    return action_client
+    return client
 
 
 class MapiClient:
@@ -55,6 +73,14 @@ class MapiClient:
 
     def __init__(self, node: rclpy.node.Node, ns: str = "manipulation_pipeline"):
         self._node = node
+
+        self._list_controllers_client = _wait_for_service(
+            node,
+            ListControllers,
+            "/controller_manager/list_controllers",
+            timeout_sec=30.0,
+        )
+        self._wait_for_controller("joint_trajectory_controller", timeout_sec=30.0)
 
         for action_name, action_type in self._ACTIONS.items():
             client = _wait_for_action(
@@ -79,6 +105,30 @@ class MapiClient:
                 f"{action_name}_expect_abort",
                 make_method(client, action_type, expected_result="abort"),
             )
+
+    def _wait_for_controller(self, controller_name, timeout_sec):
+        deadline = self._node.get_clock().now() + Duration(seconds=timeout_sec)
+        logging.info(
+            f"Waiting for controller {controller_name} to be active (timeout={timeout_sec:.1f}s)..."
+        )
+
+        while self._node.get_clock().now() < deadline:
+            future = self._list_controllers_client.call_async(ListControllers.Request())
+            rclpy.spin_until_future_complete(self._node, future, timeout_sec=5.0)
+            if future.done():
+                for controller in future.result().controller:
+                    if (
+                        controller.name == controller_name
+                        and controller.state == "active"
+                    ):
+                        logging.info(f"Controller {controller_name} is active")
+                        return
+            rclpy.spin_once(self._node, timeout_sec=1.0)
+            time.sleep(1.0)
+
+        raise RuntimeError(
+            f"Controller {controller_name} not active after {timeout_sec:.1f} seconds"
+        )
 
     def _call_action(
         self,
