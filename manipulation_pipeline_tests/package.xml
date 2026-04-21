@@ -18,6 +18,9 @@
   <exec_depend>manipulation_pipeline</exec_depend>
   <exec_depend>manipulation_pipeline_interfaces</exec_depend>
   <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>moveit_planners_ompl</exec_depend>
+  <exec_depend>moveit_simple_controller_manager</exec_depend>
+  <exec_depend>pilz_industrial_motion_planner</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>ur_description</exec_depend>
   <exec_depend>ur_robot_driver</exec_depend>
