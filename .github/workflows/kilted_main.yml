@@ -1,4 +1,4 @@
-name: Rolling build - Main
+name: Kilted build - Main
 
 on:
   workflow_dispatch: {}
@@ -11,5 +11,5 @@ jobs:
   build:
     uses: ./.github/workflows/industrial_ci.yml
     with:
-      ros_distro: rolling
+      ros_distro: kilted
       ros_repo: main
