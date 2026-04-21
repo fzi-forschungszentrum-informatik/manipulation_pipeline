@@ -1,0 +1,8 @@
+planning_pipelines:
+  pipeline_names: ["ompl", "pilz_industrial_motion_planner"]
+
+plan_request_params:
+  planning_attempts: 10
+  planning_time: 3.0
+  planning_pipeline: ompl
+  planner_id: "RRTConnectkConfigDefault"

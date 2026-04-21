@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+    <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro" />
+
+    <xacro:macro name="ur_simple" params="name ur_type parent">
+        <xacro:ur_robot name="${name}"
+            tf_prefix="${name}_"
+            parent="${parent}"
+            joint_limits_parameters_file="$(find ur_description)/config/${ur_type}/joint_limits.yaml"
+            kinematics_parameters_file="$(find ur_description)/config/${ur_type}/default_kinematics.yaml"
+            physical_parameters_file="$(find ur_description)/config/${ur_type}/physical_parameters.yaml"
+            visual_parameters_file="$(find ur_description)/config/${ur_type}/visual_parameters.yaml">
+            <origin />
+        </xacro:ur_robot>
+
+        <xacro:ur_ros2_control name="ur" tf_prefix="ur_" />
+    </xacro:macro>
+
+</robot>

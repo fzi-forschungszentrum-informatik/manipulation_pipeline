@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="single_ur">
+
+    <xacro:include filename="$(find manipulation_pipeline_tests)/urdf/ur_simple.urdf.xacro" />
+    <xacro:include filename="$(find ur_description)/urdf/ros2_control_mock_hardware.xacro" />
+
+    <link name="world" />
+
+    <xacro:ur_simple name="ur" ur_type="ur10e" parent="world" />
+
+</robot>
